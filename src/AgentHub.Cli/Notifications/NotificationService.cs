@@ -12,6 +12,7 @@ namespace AgentHub.Cli.Notifications;
 public sealed class NotificationService
 {
     private readonly string _filePath;
+    private readonly object _lock = new();
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
@@ -38,9 +39,12 @@ public sealed class NotificationService
         var notification = new StoredNotification(
             sessionId, kind.ToString(), summary, DateTimeOffset.UtcNow, false);
 
-        var notifications = ReadNotifications();
-        notifications.Add(notification);
-        WriteNotifications(notifications);
+        WithFileLock(() =>
+        {
+            var notifications = ReadNotificationsUnsafe();
+            notifications.Add(notification);
+            WriteNotificationsUnsafe(notifications);
+        });
 
         // Ring terminal bell for urgent events
         if (kind is SessionEventKind.ApprovalRequest or SessionEventKind.Threat)
@@ -59,7 +63,8 @@ public sealed class NotificationService
     /// </summary>
     public List<StoredNotification> GetPendingNotifications()
     {
-        return ReadNotifications().Where(n => !n.Acknowledged).ToList();
+        return WithFileLock(() =>
+            ReadNotificationsUnsafe().Where(n => !n.Acknowledged).ToList());
     }
 
     /// <summary>
@@ -67,11 +72,14 @@ public sealed class NotificationService
     /// </summary>
     public void AcknowledgeAll()
     {
-        var notifications = ReadNotifications();
-        var updated = notifications
-            .Select(n => n with { Acknowledged = true })
-            .ToList();
-        WriteNotifications(updated);
+        WithFileLock(() =>
+        {
+            var notifications = ReadNotificationsUnsafe();
+            var updated = notifications
+                .Select(n => n with { Acknowledged = true })
+                .ToList();
+            WriteNotificationsUnsafe(updated);
+        });
     }
 
     /// <summary>
@@ -101,15 +109,15 @@ public sealed class NotificationService
         formatter.WriteSuccess($"{pending.Count} notifications: {detail}. Run `ah listen` for details.");
     }
 
-    private List<StoredNotification> ReadNotifications()
+    private List<StoredNotification> ReadNotificationsUnsafe()
     {
         if (!File.Exists(_filePath))
             return [];
 
         try
         {
-            using var fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.None);
-            return JsonSerializer.Deserialize<List<StoredNotification>>(fs, s_json) ?? [];
+            var json = File.ReadAllText(_filePath);
+            return JsonSerializer.Deserialize<List<StoredNotification>>(json, s_json) ?? [];
         }
         catch
         {
@@ -117,14 +125,30 @@ public sealed class NotificationService
         }
     }
 
-    private void WriteNotifications(List<StoredNotification> notifications)
+    private void WriteNotificationsUnsafe(List<StoredNotification> notifications)
     {
         var dir = Path.GetDirectoryName(_filePath)!;
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
-        using var fs = new FileStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-        JsonSerializer.Serialize(fs, notifications, s_json);
+        var json = JsonSerializer.Serialize(notifications, s_json);
+        File.WriteAllText(_filePath, json);
+    }
+
+    private void WithFileLock(Action action)
+    {
+        lock (_lock)
+        {
+            action();
+        }
+    }
+
+    private T WithFileLock<T>(Func<T> func)
+    {
+        lock (_lock)
+        {
+            return func();
+        }
     }
 }
 

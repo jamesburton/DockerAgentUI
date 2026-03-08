@@ -6,9 +6,11 @@ using AgentHub.Cli.Output;
 using AgentHub.Cli.Commands;
 using AgentHub.Cli.Commands.Session;
 using AgentHub.Cli.Commands.Host;
+using AgentHub.Cli.Notifications;
 using AgentHub.Contracts;
 
 var config = CliConfig.Load();
+var notificationService = new NotificationService();
 
 // -- Global options --
 var jsonOption = new Option<bool>("--json") { Description = "Output in JSON format", Recursive = true };
@@ -328,6 +330,21 @@ var configCommand = new Command("config", "CLI configuration");
     rootCommand.Add(cmd);
 }
 
+// -- listen (notification stream) --
+{
+    var cmd = new Command("listen", "Stream notable fleet events (completions, failures, approvals)");
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var sseReader = ResolveSseReader(pr);
+        var isJson = pr.GetValue(jsonOption);
+
+        return await ListenCommand.ExecuteAsync(isJson, sseReader, notificationService, ct);
+    });
+
+    rootCommand.Add(cmd);
+}
+
 // -- run (alias for session start) --
 {
     var agentArg = new Argument<string>("agent") { Description = "Agent type (e.g. claude)" };
@@ -410,6 +427,16 @@ var cliConfiguration = new CommandLineConfiguration(rootCommand)
 {
     EnableDefaultExceptionHandler = false
 };
+
+// Show pending notifications from previous `ah listen` sessions
+try
+{
+    notificationService.ShowPendingSummary(new TableFormatter());
+}
+catch
+{
+    // Don't let notification display errors block command execution
+}
 
 try
 {
