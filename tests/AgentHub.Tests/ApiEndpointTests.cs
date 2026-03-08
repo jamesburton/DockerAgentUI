@@ -1,22 +1,32 @@
 using System.Net;
 using System.Net.Http.Json;
 using AgentHub.Contracts;
+using AgentHub.Orchestration.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace AgentHub.Tests;
 
 [Trait("Category", "Integration")]
-public class ApiEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class ApiEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
+    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
+    private readonly string _dbPath;
 
     public ApiEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.WithWebHostBuilder(builder =>
+        _dbPath = Path.Combine(Path.GetTempPath(), $"agenthub-test-{Guid.NewGuid():N}.db");
+
+        _factory = factory.WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("ConnectionStrings:AgentHub", "Data Source=:memory:");
-        }).CreateClient();
+            builder.UseSetting("ConnectionStrings:AgentHub",
+                $"Data Source={_dbPath};Cache=Shared");
+        });
+
+        _client = _factory.CreateClient();
     }
 
     [Fact]
@@ -36,7 +46,8 @@ public class ApiEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.GetAsync("/api/hosts");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var hosts = await response.Content.ReadFromJsonAsync<List<HostRecord>>();
+        var hosts = await response.Content.ReadFromJsonAsync<List<HostRecord>>(
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         Assert.NotNull(hosts);
         // After seeding from hosts.json, should have hosts
         Assert.NotEmpty(hosts);
@@ -48,9 +59,18 @@ public class ApiEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.GetAsync("/api/sessions");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var sessions = await response.Content.ReadFromJsonAsync<List<SessionSummary>>();
+        var sessions = await response.Content.ReadFromJsonAsync<List<SessionSummary>>(
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         Assert.NotNull(sessions);
         Assert.Empty(sessions);
+    }
+
+    public void Dispose()
+    {
+        _client.Dispose();
+        try { File.Delete(_dbPath); } catch { }
+        try { File.Delete(_dbPath + "-wal"); } catch { }
+        try { File.Delete(_dbPath + "-shm"); } catch { }
     }
 
     private record HealthResponse(bool Ok);

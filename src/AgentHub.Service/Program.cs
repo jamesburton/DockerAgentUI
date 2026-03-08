@@ -9,7 +9,6 @@ using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
 using AgentHub.Orchestration.Data;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,16 +16,32 @@ var builder = WebApplication.CreateBuilder(args);
 var rootPath = builder.Environment.ContentRootPath;
 var configRoot = Path.GetFullPath(Path.Combine(rootPath, "..", "..", "config"));
 
+// EF Core with SQLite persistence
+var connectionString = builder.Configuration.GetConnectionString("AgentHub")
+    ?? "Data Source=agenthub.db;Cache=Shared";
 builder.Services.AddDbContextPool<AgentHubDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("AgentHub")
-        ?? "Data Source=agenthub.db;Cache=Shared"));
+    options.UseSqlite(connectionString));
+builder.Services.AddDbContextFactory<AgentHubDbContext>(options =>
+    options.UseSqlite(connectionString), ServiceLifetime.Singleton);
+
+// Host seeding from hosts.json into DB on startup
+var hostsJsonPath = Path.Combine(configRoot, "hosts.json");
+builder.Services.AddSingleton<IHostedService>(sp =>
+    new HostSeedingService(
+        sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
+        hostsJsonPath,
+        sp.GetRequiredService<ILogger<HostSeedingService>>()));
 
 builder.Services.AddSingleton<IUserContext, DevUserContext>();
 builder.Services.AddSingleton<IPlacementEngine, SimplePlacementEngine>();
 builder.Services.AddSingleton<ISanitizationService, BasicSanitizationService>();
 builder.Services.AddSingleton<ISkillRegistry>(_ => new JsonSkillRegistry(Path.Combine(configRoot, "skills")));
 builder.Services.AddSingleton<ISkillPolicyService>(_ => new JsonSkillPolicyService(Path.Combine(configRoot, "policies", "global.policy.json")));
-builder.Services.AddSingleton<IHostRegistry>(_ => new JsonHostRegistry(Path.Combine(configRoot, "hosts.json")));
+
+// Host registry backed by DB (seeded from hosts.json by HostSeedingService)
+builder.Services.AddSingleton<IHostRegistry>(sp =>
+    new DbHostRegistry(sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>()));
+
 builder.Services.AddSingleton<ISharedStorageProvider, BlobSharedStorageProvider>();
 builder.Services.AddSingleton<IWorktreeProvider, GitWorktreeProvider>();
 
@@ -37,6 +52,15 @@ builder.Services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
 builder.Services.AddSingleton<SessionEventBus>();
 
 var app = builder.Build();
+
+// Apply migrations and set SQLite PRAGMAs
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AgentHubDbContext>();
+    db.Database.Migrate();
+    db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+    db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");
+}
 
 app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
 
