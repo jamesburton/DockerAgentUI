@@ -83,8 +83,13 @@ public sealed class SessionCoordinator(
 
     public async Task StopSessionAsync(string userId, string sessionId, CancellationToken ct)
     {
+        await StopSessionAsync(userId, sessionId, forceKill: false, ct);
+    }
+
+    public async Task StopSessionAsync(string userId, string sessionId, bool forceKill, CancellationToken ct)
+    {
         var session = await GetSessionAsync(sessionId, userId, ct) ?? throw new InvalidOperationException("Session not found.");
         var backend = _backends.First(x => string.Equals(x.Name, session.Backend, StringComparison.OrdinalIgnoreCase));
-        await backend.StopAsync(sessionId, ct);
+        await backend.StopAsync(sessionId, forceKill, ct);
     }
 }

@@ -47,7 +47,7 @@ public sealed class InMemoryBackend : ISessionBackend
     public Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
         => Task.CompletedTask;
 
-    public Task StopAsync(string sessionId, CancellationToken ct)
+    public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)
     {
         if (_sessions.TryGetValue(sessionId, out var s))
             _sessions[sessionId] = s with { State = SessionState.Stopped };

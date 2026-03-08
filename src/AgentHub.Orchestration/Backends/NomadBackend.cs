@@ -22,7 +22,7 @@ public sealed class NomadBackend : ISessionBackend
     public Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
         => throw new NotImplementedException();
 
-    public Task StopAsync(string sessionId, CancellationToken ct)
+    public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)
         => throw new NotImplementedException();
 
     public Task<SessionSummary?> GetAsync(string sessionId, CancellationToken ct)

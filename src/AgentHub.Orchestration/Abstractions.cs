@@ -34,7 +34,7 @@ public interface ISessionBackend
     Task<IReadOnlyList<NodeCapability>> GetInventoryAsync(CancellationToken ct);
     Task<string> StartAsync(string ownerUserId, StartSessionRequest request, PlacementDecision placement, Func<SessionEvent, Task> emit, CancellationToken ct);
     Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct);
-    Task StopAsync(string sessionId, CancellationToken ct);
+    Task StopAsync(string sessionId, bool forceKill, CancellationToken ct);
     Task<SessionSummary?> GetAsync(string sessionId, CancellationToken ct);
     Task<IReadOnlyList<SessionSummary>> ListAsync(string ownerUserId, CancellationToken ct);
 }
