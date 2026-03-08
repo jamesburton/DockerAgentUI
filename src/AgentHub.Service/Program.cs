@@ -52,6 +52,7 @@ builder.Services.AddSingleton<IWorktreeProvider, GitWorktreeProvider>();
 builder.Services.AddSingleton<ApprovalService>();
 builder.Services.AddSingleton<ConfigLoader>();
 builder.Services.AddSingleton<ConfigScopeMerger>();
+builder.Services.AddSingleton<ConfigResolutionService>();
 builder.Services.AddSingleton<IHostedService>(sp =>
     new SessionMonitorService(
         sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
