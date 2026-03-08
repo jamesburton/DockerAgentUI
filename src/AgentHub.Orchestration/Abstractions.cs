@@ -1,4 +1,6 @@
 using AgentHub.Contracts;
+using AgentHub.Orchestration.Config;
+using AgentHub.Orchestration.Security;
 
 namespace AgentHub.Orchestration;
 
@@ -48,6 +50,7 @@ public interface IHostRegistry
 public interface ISanitizationService
 {
     SanitizationDecision Evaluate(SendInputRequest request, SessionSummary session, SkillManifest? skill);
+    TrustTierDecision EvaluateWithTrustTier(string action, ScopedPolicyConfig? policy);
 }
 
 public interface ISkillRegistry
