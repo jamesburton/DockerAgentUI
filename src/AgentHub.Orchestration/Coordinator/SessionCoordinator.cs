@@ -1,6 +1,7 @@
 using AgentHub.Contracts;
 using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
+using AgentHub.Orchestration.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgentHub.Orchestration.Coordinator;
@@ -78,6 +79,39 @@ public sealed class SessionCoordinator(
             throw new InvalidOperationException("Input blocked by sanitizer.");
         }
 
+        // Trust tier evaluation: check if action requires approval gating
+        var trustTierDecision = sanitizer.EvaluateWithTrustTier(request.SkillId ?? request.Input ?? "", policy: null);
+
+        if (trustTierDecision.Denied)
+        {
+            await emit(new SessionEvent(sessionId, SessionEventKind.Policy, DateTimeOffset.UtcNow,
+                $"Action denied by trust tier policy (tier: {trustTierDecision.Tier}).",
+                new Dictionary<string, string> { ["decision"] = "deny", ["tier"] = trustTierDecision.Tier.ToString() }));
+            throw new InvalidOperationException("Action denied by trust tier policy.");
+        }
+
+        if (trustTierDecision.RequiresApproval)
+        {
+            var approvalContext = new ApprovalContext(
+                Action: request.SkillId ?? "raw-input",
+                Command: request.Input,
+                FilePath: null,
+                DiffPreview: null,
+                TimeoutSeconds: null,
+                TimeoutAction: null,
+                SkipPermissionPrompts: session.Requirements.AcceptRisk);
+
+            var approvalResult = await approval.RequestApprovalAsync(sessionId, approvalContext, emit, ct);
+
+            if (approvalResult is ApprovalDecision.Denied or ApprovalDecision.TimedOut)
+            {
+                await emit(new SessionEvent(sessionId, SessionEventKind.Policy, DateTimeOffset.UtcNow,
+                    $"Action denied by approval ({approvalResult}).",
+                    new Dictionary<string, string> { ["decision"] = approvalResult.ToString() }));
+                throw new InvalidOperationException($"Action denied by approval ({approvalResult}).");
+            }
+        }
+
         var backend = _backends.First(x => string.Equals(x.Name, session.Backend, StringComparison.OrdinalIgnoreCase));
         await emit(new SessionEvent(sessionId, SessionEventKind.Audit, DateTimeOffset.UtcNow,
             $"Input accepted for backend {backend.Name}.",
@@ -116,13 +150,16 @@ public sealed class SessionCoordinator(
             query = query.Where(s => s.State == state);
         }
 
-        var totalCount = await query.CountAsync(ct);
+        // SQLite does not support DateTimeOffset in ORDER BY; fetch user's sessions
+        // and sort/paginate in memory (acceptable for user-scoped queries).
+        var allEntities = await query.ToListAsync(ct);
+        var totalCount = allEntities.Count;
 
-        var entities = await query
+        var entities = allEntities
             .OrderByDescending(s => s.CreatedUtc)
             .Skip(skip)
             .Take(take)
-            .ToListAsync(ct);
+            .ToList();
 
         var items = entities.Select(e => new SessionSummary(
             e.SessionId,
