@@ -64,11 +64,11 @@ Plans:
   2. CLI supports non-interactive/scriptable mode (exit codes, machine-readable output) for automation
   3. User can view per-host resource usage (CPU, memory) from the CLI
   4. User receives visible notifications in the CLI for session completion, errors, and approval requests
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — CLI project scaffold, API client, output formatters, CRUD commands (session start/list/stop, host list/status, config show)
+- [ ] 03-02-PLAN.md — SSE streaming, live watch displays, notification service, approval inline handler, listen command
 
 ### Phase 4: Web Dashboard
 **Goal**: A Blazor web dashboard provides visual fleet oversight with live session status and real-time output streaming
