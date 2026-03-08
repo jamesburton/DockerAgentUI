@@ -73,13 +73,13 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Multi-tenant / multi-user auth | Single operator for now — adds auth, RBAC, isolation, billing complexity |
-| Agent-to-agent direct communication | Debugging distributed agent conversations is nightmarish — use orchestrator-mediated coordination |
-| Auto-merge of agent PRs | Industry consensus is human-in-the-loop for merges — auto-create PRs, operator merges |
-| Natural language task decomposition | Unreliable quality — operator decomposes tasks, system executes reliably |
-| Automatic tool installation on hosts | Fragile and security concern — detect what's installed, operator installs manually |
-| Mobile-first UI design | Primary workflow needs screen real estate — desktop-first, mobile-responsive as bonus |
-| OpenClaw / NanoClaw agent support | Future iteration — not enough information on these agents yet |
+| Multi-tenant / multi-user auth | Single operator for now -- adds auth, RBAC, isolation, billing complexity |
+| Agent-to-agent direct communication | Debugging distributed agent conversations is nightmarish -- use orchestrator-mediated coordination |
+| Auto-merge of agent PRs | Industry consensus is human-in-the-loop for merges -- auto-create PRs, operator merges |
+| Natural language task decomposition | Unreliable quality -- operator decomposes tasks, system executes reliably |
+| Automatic tool installation on hosts | Fragile and security concern -- detect what's installed, operator installs manually |
+| Mobile-first UI design | Primary workflow needs screen real estate -- desktop-first, mobile-responsive as bonus |
+| OpenClaw / NanoClaw agent support | Future iteration -- not enough information on these agents yet |
 
 ## Traceability
 
@@ -87,32 +87,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SESS-01 | — | Pending |
-| SESS-02 | — | Pending |
-| SESS-03 | — | Pending |
-| SESS-04 | — | Pending |
-| SESS-05 | — | Pending |
-| MON-01 | — | Pending |
-| MON-02 | — | Pending |
-| MON-03 | — | Pending |
-| AGENT-01 | — | Pending |
-| AGENT-02 | — | Pending |
-| AGENT-03 | — | Pending |
-| AGENT-04 | — | Pending |
-| AGENT-05 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| WEB-01 | — | Pending |
-| WEB-02 | — | Pending |
+| SESS-01 | Phase 2 | Pending |
+| SESS-02 | Phase 2 | Pending |
+| SESS-03 | Phase 2 | Pending |
+| SESS-04 | Phase 2 | Pending |
+| SESS-05 | Phase 2 | Pending |
+| MON-01 | Phase 1 | Pending |
+| MON-02 | Phase 3 | Pending |
+| MON-03 | Phase 3 | Pending |
+| AGENT-01 | Phase 1 | Pending |
+| AGENT-02 | Phase 2 | Pending |
+| AGENT-03 | Phase 2 | Pending |
+| AGENT-04 | Phase 2 | Pending |
+| AGENT-05 | Phase 2 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| CLI-01 | Phase 3 | Pending |
+| CLI-02 | Phase 3 | Pending |
+| WEB-01 | Phase 4 | Pending |
+| WEB-02 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 after roadmap creation*
