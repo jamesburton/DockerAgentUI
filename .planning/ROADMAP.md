@@ -29,12 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. SSE endpoint streams events in real-time with event IDs and supports Last-Event-ID replay on reconnect
   4. Agent adapter interface exists with at least one concrete implementation (Claude Code) that can translate a session request into a CLI command
   5. Host daemon concept is defined with a receivable command protocol (even if initially stub/SSH-based)
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
-- [ ] 01-01-PLAN.md — EF Core data layer, persistence, test project, API wiring
-- [ ] 01-02-PLAN.md — Durable event service with SSE streaming and Last-Event-ID replay
-- [ ] 01-03-PLAN.md — Agent adapter pattern (Claude Code) and host daemon command protocol
+- [x] 01-01-PLAN.md — EF Core data layer, persistence, test project, API wiring
+- [x] 01-02-PLAN.md — Durable event service with SSE streaming and Last-Event-ID replay
+- [x] 01-03-PLAN.md — Agent adapter pattern (Claude Code) and host daemon command protocol
 
 ### Phase 2: Session Orchestration and Agent Execution
 **Goal**: Users can launch, monitor, and stop real agent sessions on remote hosts with policy checks, input sanitization, and approval gating for destructive actions
@@ -49,7 +49,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Data model extensions, multi-format config loader (JSON/YAML/MD), trust tiers, permission wiring
+- [x] 02-01-PLAN.md — Data model extensions, multi-format config loader (JSON/YAML/MD), trust tiers, permission wiring
 - [ ] 02-02-PLAN.md — SSH backend rewrite with SSH.NET, session monitor service, heartbeat/orphan detection
 - [ ] 02-03-PLAN.md — Approval/elevation gating service with SSE delivery, extended sanitization with trust tiers
 - [ ] 02-04-PLAN.md — Coordinator wiring, API endpoints for force-kill, approval resolution, session history
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Event Infrastructure | 1/3 | In Progress|  |
-| 2. Session Orchestration and Agent Execution | 0/4 | Not started | - |
+| 1. Foundation and Event Infrastructure | 3/3 | Complete | 2026-03-08 |
+| 2. Session Orchestration and Agent Execution | 1/4 | In Progress | - |
 | 3. CLI Client | 0/2 | Not started | - |
 | 4. Web Dashboard | 0/1 | Not started | - |
