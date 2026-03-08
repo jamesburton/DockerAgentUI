@@ -29,12 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. SSE endpoint streams events in real-time with event IDs and supports Last-Event-ID replay on reconnect
   4. Agent adapter interface exists with at least one concrete implementation (Claude Code) that can translate a session request into a CLI command
   5. Host daemon concept is defined with a receivable command protocol (even if initially stub/SSH-based)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — EF Core data layer, persistence, test project, API wiring
+- [ ] 01-02-PLAN.md — Durable event service with SSE streaming and Last-Event-ID replay
+- [ ] 01-03-PLAN.md — Agent adapter pattern (Claude Code) and host daemon command protocol
 
 ### Phase 2: Session Orchestration and Agent Execution
 **Goal**: Users can launch, monitor, and stop real agent sessions on remote hosts with policy checks, input sanitization, and approval gating for destructive actions
