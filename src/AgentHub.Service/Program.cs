@@ -5,11 +5,14 @@ using AgentHub.Orchestration.Backends;
 using AgentHub.Orchestration.Config;
 using AgentHub.Orchestration.Coordinator;
 using AgentHub.Orchestration.Events;
+using AgentHub.Orchestration.Monitoring;
 using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
 using AgentHub.Orchestration.Data;
+using AgentHub.Orchestration.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +47,17 @@ builder.Services.AddSingleton<IHostRegistry>(sp =>
 
 builder.Services.AddSingleton<ISharedStorageProvider, BlobSharedStorageProvider>();
 builder.Services.AddSingleton<IWorktreeProvider, GitWorktreeProvider>();
+
+// Phase 2 services
+builder.Services.AddSingleton<ApprovalService>();
+builder.Services.AddSingleton<ConfigLoader>();
+builder.Services.AddSingleton<ConfigScopeMerger>();
+builder.Services.AddSingleton<IHostedService>(sp =>
+    new SessionMonitorService(
+        sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
+        sp.GetRequiredService<ILogger<SessionMonitorService>>()));
+
+builder.Services.AddSingleton<ISshHostConnectionFactory, SshHostConnectionFactory>();
 
 builder.Services.AddSingleton<ISessionBackend, InMemoryBackend>();
 builder.Services.AddSingleton<ISessionBackend, SshBackend>();
@@ -82,13 +96,46 @@ app.MapGet("/api/skills", (ISkillRegistry skills)
 app.MapGet("/api/policy", (ISkillPolicyService policy)
     => Results.Ok(policy.GetPolicySnapshot()));
 
-app.MapGet("/api/sessions", async (IUserContext user, ISessionCoordinator coordinator, CancellationToken ct)
-    => Results.Ok(await coordinator.ListSessionsAsync(user.UserId, ct)));
+// Session listing with pagination and state filtering
+app.MapGet("/api/sessions", async (IUserContext user, ISessionCoordinator coordinator,
+    int? skip, int? take, string? state, CancellationToken ct) =>
+{
+    var (items, totalCount) = await coordinator.GetSessionHistoryAsync(
+        user.UserId, skip ?? 0, take ?? 50, state, ct);
+    return Results.Json(new { items, totalCount });
+});
 
 app.MapGet("/api/sessions/{sessionId}", async (string sessionId, IUserContext user, ISessionCoordinator coordinator, CancellationToken ct) =>
 {
     var s = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
     return s is null ? Results.NotFound() : Results.Ok(s);
+});
+
+// Session history: full event replay
+app.MapGet("/api/sessions/{sessionId}/history", async (string sessionId, IUserContext user, ISessionCoordinator coordinator,
+    IDbContextFactory<AgentHubDbContext> dbFactory, CancellationToken ct) =>
+{
+    var s = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
+    if (s is null) return Results.NotFound();
+
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    var rawEvents = await db.Events
+        .Where(e => e.SessionId == sessionId)
+        .ToListAsync(ct);
+
+    var events = rawEvents
+        .OrderBy(e => e.TsUtc)
+        .Select(e => new
+        {
+            e.Id,
+            e.SessionId,
+            Kind = e.Kind.ToString(),
+            e.TsUtc,
+            e.Data,
+            e.MetaJson
+        })
+        .ToList();
+    return Results.Ok(events);
 });
 
 app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
@@ -103,10 +150,25 @@ app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInpu
     return Results.Accepted();
 });
 
+// Graceful or force stop via DELETE
+app.MapDelete("/api/sessions/{sessionId}", async (string sessionId, bool? force, IUserContext user, ISessionCoordinator coordinator, CancellationToken ct) =>
+{
+    await coordinator.StopSessionAsync(user.UserId, sessionId, forceKill: force ?? false, ct);
+    return Results.Accepted();
+});
+
+// Keep old POST stop endpoint for backward compatibility
 app.MapPost("/api/sessions/{sessionId}/stop", async (string sessionId, IUserContext user, ISessionCoordinator coordinator, CancellationToken ct) =>
 {
     await coordinator.StopSessionAsync(user.UserId, sessionId, ct);
     return Results.Accepted();
+});
+
+// Approval resolution endpoint
+app.MapPost("/api/approvals/{approvalId}/resolve", async (string approvalId, ApprovalResolveRequest req, ApprovalService approvalService) =>
+{
+    approvalService.ResolveApproval(approvalId, req.Approved, req.ResolvedBy);
+    return Results.Ok();
 });
 
 app.MapGet("/api/sessions/{sessionId}/events", async (
@@ -148,3 +210,8 @@ public sealed class DevUserContext : IUserContext
 {
     public string UserId => "dev-user";
 }
+
+/// <summary>
+/// Request body for approval resolution endpoint.
+/// </summary>
+public sealed record ApprovalResolveRequest(bool Approved, string? ResolvedBy = null);

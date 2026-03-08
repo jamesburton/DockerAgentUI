@@ -59,10 +59,11 @@ public class ApiEndpointTests : IClassFixture<WebApplicationFactory<Program>>, I
         var response = await _client.GetAsync("/api/sessions");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var sessions = await response.Content.ReadFromJsonAsync<List<SessionSummary>>(
-            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-        Assert.NotNull(sessions);
-        Assert.Empty(sessions);
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var items = json.GetProperty("items");
+        var totalCount = json.GetProperty("totalCount").GetInt32();
+        Assert.Equal(0, items.GetArrayLength());
+        Assert.Equal(0, totalCount);
     }
 
     public void Dispose()
