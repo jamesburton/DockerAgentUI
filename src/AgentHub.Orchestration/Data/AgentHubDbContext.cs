@@ -9,6 +9,7 @@ public class AgentHubDbContext(DbContextOptions<AgentHubDbContext> options)
     public DbSet<SessionEntity> Sessions => Set<SessionEntity>();
     public DbSet<SessionEventEntity> Events => Set<SessionEventEntity>();
     public DbSet<HostEntity> Hosts => Set<HostEntity>();
+    public DbSet<ApprovalEntity> Approvals => Set<ApprovalEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +37,19 @@ public class AgentHubDbContext(DbContextOptions<AgentHubDbContext> options)
         modelBuilder.Entity<HostEntity>(e =>
         {
             e.HasKey(x => x.HostId);
+        });
+
+        modelBuilder.Entity<ApprovalEntity>(e =>
+        {
+            e.HasKey(x => x.ApprovalId);
+            e.HasIndex(x => x.SessionId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Status).HasConversion<string>();
+
+            e.HasOne(x => x.Session)
+                .WithMany(s => s.Approvals)
+                .HasForeignKey(x => x.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

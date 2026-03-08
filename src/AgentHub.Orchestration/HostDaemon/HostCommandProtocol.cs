@@ -67,6 +67,40 @@ public static class HostCommandProtocol
     }
 
     /// <summary>
+    /// Create a force-kill command (bypasses graceful shutdown).
+    /// </summary>
+    public static HostCommand CreateForceKill(string sessionId, string? reason = null)
+    {
+        ForceKillPayload? payload = reason is not null ? new ForceKillPayload { Reason = reason } : null;
+        return new HostCommand
+        {
+            Command = HostCommand.ForceKill,
+            SessionId = sessionId,
+            Payload = payload is not null ? JsonSerializer.SerializeToElement(payload, s_options) : null
+        };
+    }
+
+    /// <summary>
+    /// Create an approval-response command.
+    /// </summary>
+    public static HostCommand CreateApprovalResponse(string sessionId, string approvalId, bool approved, string? reason = null)
+    {
+        var payload = new ApprovalResponsePayload
+        {
+            ApprovalId = approvalId,
+            Approved = approved,
+            Reason = reason
+        };
+        var payloadElement = JsonSerializer.SerializeToElement(payload, s_options);
+        return new HostCommand
+        {
+            Command = HostCommand.ApprovalResponse,
+            SessionId = sessionId,
+            Payload = payloadElement
+        };
+    }
+
+    /// <summary>
     /// Serialize a command to a single-line JSON string (for SSH stdin piping).
     /// </summary>
     public static string Serialize(HostCommand command)

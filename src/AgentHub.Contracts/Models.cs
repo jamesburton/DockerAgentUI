@@ -42,7 +42,9 @@ public sealed record StartSessionRequest(
     Dictionary<string, string>? Env = null,
     string? WorktreeId = null,
     string? RequestedSkillProfile = null,
-    string? Reason = null
+    string? Reason = null,
+    string? Prompt = null,
+    bool IsFireAndForget = false
 );
 
 public sealed record SessionSummary(
@@ -74,7 +76,14 @@ public enum SessionEventKind
     Custom,
     Policy,
     Threat,
-    Audit
+    Audit,
+    // Phase 2 additions:
+    ApprovalRequest,
+    ApprovalResponse,
+    Heartbeat,
+    SessionCompleted,
+    CleanupStarted,
+    CleanupCompleted
 }
 
 public sealed record SessionEvent(

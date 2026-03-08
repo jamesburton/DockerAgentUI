@@ -15,5 +15,15 @@ public class SessionEntity
     public string? WorktreePath { get; set; }
     public string? RiskAcceptedBy { get; set; }
 
+    // Phase 2 additions
+    public DateTimeOffset? CompletedUtc { get; set; }
+    public int? ExitCode { get; set; }
+    public string? CleanupState { get; set; }
+    public bool IsFireAndForget { get; set; }
+    public string? Prompt { get; set; }
+    public string? TimeLimit { get; set; }
+    public string? CleanupPolicy { get; set; }
+
     public List<SessionEventEntity> Events { get; set; } = [];
+    public List<ApprovalEntity> Approvals { get; set; } = [];
 }

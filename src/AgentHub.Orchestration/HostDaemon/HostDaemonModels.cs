@@ -34,6 +34,12 @@ public sealed record HostCommand
 
     /// <summary>Well-known command: connectivity check.</summary>
     public const string Ping = "ping";
+
+    /// <summary>Well-known command: force-kill a session (bypasses graceful shutdown).</summary>
+    public const string ForceKill = "force-kill";
+
+    /// <summary>Well-known command: respond to an approval request.</summary>
+    public const string ApprovalResponse = "approval-response";
 }
 
 /// <summary>
@@ -97,6 +103,32 @@ public sealed record HostCommandResponse
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Data { get; init; }
+}
+
+/// <summary>
+/// Payload for the force-kill command.
+/// </summary>
+public sealed record ForceKillPayload
+{
+    [JsonPropertyName("reason")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; init; }
+}
+
+/// <summary>
+/// Payload for the approval-response command.
+/// </summary>
+public sealed record ApprovalResponsePayload
+{
+    [JsonPropertyName("approvalId")]
+    public string ApprovalId { get; init; } = "";
+
+    [JsonPropertyName("approved")]
+    public bool Approved { get; init; }
+
+    [JsonPropertyName("reason")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; init; }
 }
 
 /// <summary>
