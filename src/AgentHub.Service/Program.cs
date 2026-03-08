@@ -8,12 +8,18 @@ using AgentHub.Orchestration.Coordinator;
 using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
+using AgentHub.Orchestration.Data;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var rootPath = builder.Environment.ContentRootPath;
 var configRoot = Path.GetFullPath(Path.Combine(rootPath, "..", "..", "config"));
+
+builder.Services.AddDbContextPool<AgentHubDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("AgentHub")
+        ?? "Data Source=agenthub.db;Cache=Shared"));
 
 builder.Services.AddSingleton<IUserContext, DevUserContext>();
 builder.Services.AddSingleton<IPlacementEngine, SimplePlacementEngine>();
