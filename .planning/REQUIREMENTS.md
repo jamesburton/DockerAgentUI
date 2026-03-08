@@ -17,7 +17,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Monitoring & Streaming
 
-- [ ] **MON-01**: User can stream real-time agent output via SSE as it happens
+- [x] **MON-01**: User can stream real-time agent output via SSE as it happens
 - [ ] **MON-02**: User can view resource usage (CPU, memory) per host
 - [ ] **MON-03**: User receives notifications for session completion, errors, and approval requests
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SESS-03 | Phase 2 | Pending |
 | SESS-04 | Phase 2 | Pending |
 | SESS-05 | Phase 2 | Pending |
-| MON-01 | Phase 1 | Pending |
+| MON-01 | Phase 1 | Complete |
 | MON-02 | Phase 3 | Pending |
 | MON-03 | Phase 3 | Pending |
 | AGENT-01 | Phase 1 | Complete |
