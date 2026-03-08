@@ -46,7 +46,7 @@ Plans:
   3. Fire-and-forget task sessions run to completion without requiring ongoing connection
   4. Past session history is retrievable with stored output and final outcome
   5. Destructive agent actions trigger an approval prompt; permission-skip flags bypass it when set
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 02-01-PLAN.md — Data model extensions, multi-format config loader (JSON/YAML/MD), trust tiers, permission wiring
@@ -90,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Event Infrastructure | 3/3 | Complete | 2026-03-08 |
-| 2. Session Orchestration and Agent Execution | 1/4 | In Progress | - |
+| 2. Session Orchestration and Agent Execution | 3/4 | In Progress|  |
 | 3. CLI Client | 0/2 | Not started | - |
 | 4. Web Dashboard | 0/1 | Not started | - |
