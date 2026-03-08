@@ -86,6 +86,9 @@ app.MapGet("/api/sessions/{sessionId}/events", async (string sessionId, IUserCon
 
 app.Run();
 
+// Make the auto-generated Program class accessible to integration tests
+public partial class Program { }
+
 public interface IUserContext
 {
     string UserId { get; }
