@@ -75,6 +75,10 @@ Recent decisions affecting current work:
 - [02-01]: GeneratedRegex for Markdown frontmatter extraction (compile-time regex)
 - [02-01]: ScopedPolicyConfig as mutable class for flexible YAML/JSON deserialization
 - [02-01]: ElevatedSkills union merge vs last-wins for enable/disable skills
+- [02-02]: ISshHostConnection interface extracted for DI and testability (not tied to SSH.NET types)
+- [02-02]: ISshHostConnectionFactory pattern enables mock injection in tests without real SSH
+- [02-02]: SessionMonitorService.RunOnceAsync() exposed as public for test-controlled monitoring cycles
+- [02-02]: Grace period for two-phase stop configurable via Ssh:GracePeriodSeconds (default 10s)
 - [02-03]: ApprovalService singleton with ConcurrentDictionary + IDbContextFactory (mirrors DurableEventService)
 - [02-03]: TrySetResult for approval race safety between timeout and manual resolution
 - [02-03]: Unknown actions default to Prompt trust tier (safe default)

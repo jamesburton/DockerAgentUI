@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Session Management
 
-- [ ] **SESS-01**: User can launch an agent session on a registered remote host
-- [ ] **SESS-02**: User can view status of all running sessions across all hosts
-- [ ] **SESS-03**: User can stop a running session (graceful + force-kill)
-- [ ] **SESS-04**: User can launch a fire-and-forget task session that runs to completion
+- [x] **SESS-01**: User can launch an agent session on a registered remote host
+- [x] **SESS-02**: User can view status of all running sessions across all hosts
+- [x] **SESS-03**: User can stop a running session (graceful + force-kill)
+- [x] **SESS-04**: User can launch a fire-and-forget task session that runs to completion
 - [ ] **SESS-05**: User can review past session history with stored output and outcome
 
 ### Monitoring & Streaming
@@ -87,10 +87,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SESS-01 | Phase 2 | Pending |
-| SESS-02 | Phase 2 | Pending |
-| SESS-03 | Phase 2 | Pending |
-| SESS-04 | Phase 2 | Pending |
+| SESS-01 | Phase 2 | Complete |
+| SESS-02 | Phase 2 | Complete |
+| SESS-03 | Phase 2 | Complete |
+| SESS-04 | Phase 2 | Complete |
 | SESS-05 | Phase 2 | Pending |
 | MON-01 | Phase 1 | Complete |
 | MON-02 | Phase 3 | Pending |
