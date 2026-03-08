@@ -3,6 +3,9 @@ using Spectre.Console;
 using AgentHub.Cli.Api;
 using AgentHub.Cli.Config;
 using AgentHub.Cli.Output;
+using AgentHub.Cli.Commands;
+using AgentHub.Cli.Commands.Session;
+using AgentHub.Cli.Commands.Host;
 using AgentHub.Contracts;
 
 var config = CliConfig.Load();
@@ -22,11 +25,17 @@ rootCommand.Add(quietOption);
 rootCommand.Add(serverOption);
 
 // -- Service factories --
-AgentHubApiClient ResolveClient(ParseResult pr)
+HttpClient ResolveHttpClient(ParseResult pr)
 {
     var serverUrl = pr.GetValue(serverOption) ?? config.ServerUrl;
-    return new AgentHubApiClient(new HttpClient { BaseAddress = new Uri(serverUrl) });
+    return new HttpClient { BaseAddress = new Uri(serverUrl) };
 }
+
+AgentHubApiClient ResolveClient(ParseResult pr)
+    => new(ResolveHttpClient(pr));
+
+SseStreamReader ResolveSseReader(ParseResult pr)
+    => new(ResolveHttpClient(pr));
 
 IOutputFormatter ResolveFormatter(ParseResult pr)
     => pr.GetValue(jsonOption) ? new JsonFormatter() : new TableFormatter();
@@ -138,6 +147,62 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     sessionCommand.Add(cmd);
 }
 
+// -- session watch --
+{
+    var idArg = new Argument<string>("sessionId") { Description = "Session ID to watch" };
+
+    var cmd = new Command("watch", "Live session dashboard with streaming events");
+    cmd.Add(idArg);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var sseReader = ResolveSseReader(pr);
+        var formatter = ResolveFormatter(pr);
+        var isJson = pr.GetValue(jsonOption);
+
+        return await SessionWatchCommand.ExecuteAsync(
+            pr.GetValue(idArg)!, isJson, client, sseReader, formatter, ct);
+    });
+
+    sessionCommand.Add(cmd);
+}
+
+// -- session logs --
+{
+    var idArg = new Argument<string>("sessionId") { Description = "Session ID to view logs for" };
+    var allOpt = new Option<bool>("--all") { Description = "Show all log history", DefaultValueFactory = _ => false };
+    var tailOpt = new Option<int>("--tail") { Description = $"Number of recent lines to show (default: {config.LogTailDefault})", DefaultValueFactory = _ => config.LogTailDefault };
+    var followOpt = new Option<bool>("-f", "--follow") { Description = "Follow live output", DefaultValueFactory = _ => false };
+    var kindOpt = new Option<string>("--kind") { Description = "Filter by event kind (e.g. StdOut, StdErr, StateChanged)" };
+
+    var cmd = new Command("logs", "View session output history");
+    cmd.Add(idArg);
+    cmd.Add(allOpt);
+    cmd.Add(tailOpt);
+    cmd.Add(followOpt);
+    cmd.Add(kindOpt);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var sseReader = ResolveSseReader(pr);
+        var formatter = ResolveFormatter(pr);
+        var isJson = pr.GetValue(jsonOption);
+
+        return await SessionLogsCommand.ExecuteAsync(
+            pr.GetValue(idArg)!,
+            pr.GetValue(allOpt),
+            pr.GetValue(tailOpt),
+            pr.GetValue(followOpt),
+            pr.GetValue(kindOpt),
+            isJson,
+            client, sseReader, formatter, ct);
+    });
+
+    sessionCommand.Add(cmd);
+}
+
 // ============================================================
 // HOST group
 // ============================================================
@@ -184,7 +249,7 @@ var hostCommand = new Command("host", "Manage fleet hosts");
 
 // -- host status --
 {
-    var watchOpt = new Option<bool>("--watch") { Description = "Live refresh (coming in Plan 02)", DefaultValueFactory = _ => false };
+    var watchOpt = new Option<bool>("--watch") { Description = "Live refresh of host metrics", DefaultValueFactory = _ => false };
     var cmd = new Command("status", "Show host resource status (CPU, memory)");
     cmd.Add(watchOpt);
 
@@ -192,6 +257,12 @@ var hostCommand = new Command("host", "Manage fleet hosts");
     {
         var client = ResolveClient(pr);
         var formatter = ResolveFormatter(pr);
+
+        if (pr.GetValue(watchOpt))
+        {
+            return await HostStatusCommand.ExecuteWatchAsync(client, config, formatter, ct);
+        }
+
         var hosts = await client.GetHostsAsync(ct);
 
         formatter.WriteTable(hosts, (table, h) =>
@@ -237,8 +308,25 @@ var configCommand = new Command("config", "CLI configuration");
 }
 
 // ============================================================
-// TOP-LEVEL SHORTCUTS
+// TOP-LEVEL COMMANDS
 // ============================================================
+
+// -- watch (fleet overview) --
+{
+    var cmd = new Command("watch", "Live fleet overview of all running sessions");
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var sseReader = ResolveSseReader(pr);
+        var formatter = ResolveFormatter(pr);
+        var isJson = pr.GetValue(jsonOption);
+
+        return await WatchCommand.ExecuteAsync(isJson, client, sseReader, config, formatter, ct);
+    });
+
+    rootCommand.Add(cmd);
+}
 
 // -- run (alias for session start) --
 {
