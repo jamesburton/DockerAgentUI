@@ -102,7 +102,10 @@ public sealed record HostRecord(
     bool Enabled,
     bool AllowSsh,
     Dictionary<string, string>? Labels = null,
-    string? Address = null);
+    string? Address = null,
+    double? CpuPercent = null,
+    long? MemUsedMb = null,
+    long? MemTotalMb = null);
 
 public sealed record SkillManifest(
     string Id,
