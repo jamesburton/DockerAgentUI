@@ -31,9 +31,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Coordinator exposes REST API for session CRUD, host listing, and event streaming
+- [x] **INFRA-01**: Coordinator exposes REST API for session CRUD, host listing, and event streaming
 - [ ] **INFRA-02**: Lightweight host daemon runs on each target machine to receive commands and report status
-- [ ] **INFRA-03**: Session state persists in a durable data store (EF Core with pluggable provider)
+- [x] **INFRA-03**: Session state persists in a durable data store (EF Core with pluggable provider)
 
 ### Client Interfaces
 
@@ -100,9 +100,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGENT-03 | Phase 2 | Pending |
 | AGENT-04 | Phase 2 | Pending |
 | AGENT-05 | Phase 2 | Pending |
-| INFRA-01 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Complete |
 | CLI-01 | Phase 3 | Pending |
 | CLI-02 | Phase 3 | Pending |
 | WEB-01 | Phase 4 | Pending |

@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. SSE endpoint streams events in real-time with event IDs and supports Last-Event-ID replay on reconnect
   4. Agent adapter interface exists with at least one concrete implementation (Claude Code) that can translate a session request into a CLI command
   5. Host daemon concept is defined with a receivable command protocol (even if initially stub/SSH-based)
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — EF Core data layer, persistence, test project, API wiring
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Event Infrastructure | 0/3 | Not started | - |
+| 1. Foundation and Event Infrastructure | 1/3 | In Progress|  |
 | 2. Session Orchestration and Agent Execution | 0/3 | Not started | - |
 | 3. CLI Client | 0/2 | Not started | - |
 | 4. Web Dashboard | 0/1 | Not started | - |
