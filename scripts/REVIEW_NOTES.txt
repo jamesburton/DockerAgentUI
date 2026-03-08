@@ -1,0 +1,8 @@
+Review checklist
+
+- Open docs/PROGRESS.md
+- Open docs/FUTURE_AGENTS.md
+- Review config/skills/custom/tool.bun.json
+- Review config/policies/global.policy.json
+- Review src/AgentHub.Orchestration/Backends/SshBackend.cs
+- Review src/AgentHub.Service/Program.cs

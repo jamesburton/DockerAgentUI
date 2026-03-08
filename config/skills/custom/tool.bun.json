@@ -1,0 +1,19 @@
+{
+  "id": "tool.bun",
+  "displayName": "bun",
+  "category": "runtime",
+  "risk": 1,
+  "exec": {
+    "type": "command",
+    "windows": { "file": "bun.exe", "args": ["{command...}"] },
+    "linux": { "file": "bun", "args": ["{command...}"] }
+  },
+  "capabilities": ["network", "filesystem", "process"],
+  "constraints": {
+    "maxSeconds": 900,
+    "allowNetwork": true,
+    "allowFilesystemWrite": true,
+    "requiresElevation": true,
+    "workingDir": "{session.workdir}"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "git.clone",
+  "displayName": "git clone",
+  "category": "git",
+  "risk": 1,
+  "exec": {
+    "type": "command",
+    "windows": { "file": "git.exe", "args": ["clone", "{repoUrl}", "{targetDir}"] },
+    "linux": { "file": "git", "args": ["clone", "{repoUrl}", "{targetDir}"] }
+  },
+  "capabilities": ["filesystem", "network"],
+  "constraints": {
+    "maxSeconds": 600,
+    "allowNetwork": true,
+    "allowFilesystemWrite": true,
+    "requiresElevation": false,
+    "workingDir": "{session.workdir}"
+  }
+}

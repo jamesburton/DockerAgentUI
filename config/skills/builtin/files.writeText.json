@@ -1,0 +1,17 @@
+{
+  "id": "files.writeText",
+  "displayName": "write text file",
+  "category": "filesystem",
+  "risk": 1,
+  "exec": {
+    "type": "internal"
+  },
+  "capabilities": ["filesystem"],
+  "constraints": {
+    "maxSeconds": 60,
+    "allowNetwork": false,
+    "allowFilesystemWrite": true,
+    "requiresElevation": false,
+    "workingDir": "{session.workdir}"
+  }
+}

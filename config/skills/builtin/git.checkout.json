@@ -1,0 +1,19 @@
+{
+  "id": "git.checkout",
+  "displayName": "git checkout",
+  "category": "git",
+  "risk": 0,
+  "exec": {
+    "type": "command",
+    "windows": { "file": "git.exe", "args": ["checkout", "{ref}"] },
+    "linux": { "file": "git", "args": ["checkout", "{ref}"] }
+  },
+  "capabilities": ["filesystem"],
+  "constraints": {
+    "maxSeconds": 180,
+    "allowNetwork": false,
+    "allowFilesystemWrite": true,
+    "requiresElevation": false,
+    "workingDir": "{session.workdir}"
+  }
+}

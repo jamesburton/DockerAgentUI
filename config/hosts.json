@@ -1,0 +1,22 @@
+[
+  {
+    "hostId": "nomad-dev-01",
+    "displayName": "Nomad Dev 01",
+    "backend": "nomad",
+    "os": "windows",
+    "enabled": true,
+    "allowSsh": false,
+    "labels": { "tier": "dev", "region": "local" },
+    "address": "http://nomad-dev-01:4646"
+  },
+  {
+    "hostId": "ssh-win-dev-01",
+    "displayName": "SSH Windows Dev 01",
+    "backend": "ssh",
+    "os": "windows",
+    "enabled": true,
+    "allowSsh": true,
+    "labels": { "tier": "dev", "acceptRisk": "true" },
+    "address": "ssh://ssh-win-dev-01"
+  }
+]

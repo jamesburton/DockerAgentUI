@@ -1,0 +1,11 @@
+{
+  "pipelines": {
+    "default": {
+      "steps": [
+        { "type": "normalizeWhitespace" },
+        { "type": "blockPatterns", "patterns": ["rm -rf /", "del /f /s", "format c:", "BEGIN PRIVATE KEY"] },
+        { "type": "requireSkillForSshRawInput" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "global-default",
+  "enabledSkills": [
+    "git.clone",
+    "git.checkout",
+    "dotnet.build",
+    "dotnet.test",
+    "files.writeText",
+    "tool.bun"
+  ],
+  "disabledSkills": [
+    "raw.shell"
+  ],
+  "elevatedSkills": [
+    "tool.bun"
+  ],
+  "notes": [
+    "SSH raw input disabled by default.",
+    "bun exists as a configurable skill but requires elevation in this starter policy."
+  ]
+}

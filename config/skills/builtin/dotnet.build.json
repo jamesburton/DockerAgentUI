@@ -1,0 +1,19 @@
+{
+  "id": "dotnet.build",
+  "displayName": ".NET build",
+  "category": "dotnet",
+  "risk": 0,
+  "exec": {
+    "type": "command",
+    "windows": { "file": "dotnet.exe", "args": ["build", "{projectOrSolution}"] },
+    "linux": { "file": "dotnet", "args": ["build", "{projectOrSolution}"] }
+  },
+  "capabilities": ["filesystem", "process"],
+  "constraints": {
+    "maxSeconds": 1200,
+    "allowNetwork": false,
+    "allowFilesystemWrite": true,
+    "requiresElevation": false,
+    "workingDir": "{session.workdir}"
+  }
+}
