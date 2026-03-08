@@ -1,0 +1,12 @@
+{
+  "agentType": "claude-code",
+  "displayName": "Claude Code",
+  "cliCommand": "claude",
+  "outputFormat": "stream-json",
+  "defaultPermissions": {
+    "skipPermissionPrompts": false,
+    "allowedTools": [],
+    "disallowedTools": []
+  },
+  "cliVersionPattern": "claude --version"
+}
