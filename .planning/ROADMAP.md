@@ -46,13 +46,14 @@ Plans:
   3. Fire-and-forget task sessions run to completion without requiring ongoing connection
   4. Past session history is retrievable with stored output and final outcome
   5. Destructive agent actions trigger an approval prompt; permission-skip flags bypass it when set
-**Plans:** 3/4 plans executed
+**Plans:** 5 plans (4 executed, 1 gap closure)
 
 Plans:
 - [x] 02-01-PLAN.md — Data model extensions, multi-format config loader (JSON/YAML/MD), trust tiers, permission wiring
-- [ ] 02-02-PLAN.md — SSH backend rewrite with SSH.NET, session monitor service, heartbeat/orphan detection
-- [ ] 02-03-PLAN.md — Approval/elevation gating service with SSE delivery, extended sanitization with trust tiers
-- [ ] 02-04-PLAN.md — Coordinator wiring, API endpoints for force-kill, approval resolution, session history
+- [x] 02-02-PLAN.md — SSH backend rewrite with SSH.NET, session monitor service, heartbeat/orphan detection
+- [x] 02-03-PLAN.md — Approval/elevation gating service with SSE delivery, extended sanitization with trust tiers
+- [x] 02-04-PLAN.md — Coordinator wiring, API endpoints for force-kill, approval resolution, session history
+- [ ] 02-05-PLAN.md — Gap closure: wire ApprovalService into SessionCoordinator, create ConfigResolutionService pipeline
 
 ### Phase 3: CLI Client
 **Goal**: A command-line tool serves as the primary interface for all platform operations, with both interactive and scriptable modes
@@ -90,6 +91,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Event Infrastructure | 3/3 | Complete | 2026-03-08 |
-| 2. Session Orchestration and Agent Execution | 3/4 | In Progress|  |
+| 2. Session Orchestration and Agent Execution | 4/5 | In Progress|  |
 | 3. CLI Client | 0/2 | Not started | - |
 | 4. Web Dashboard | 0/1 | Not started | - |
