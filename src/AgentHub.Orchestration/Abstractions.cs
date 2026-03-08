@@ -81,4 +81,6 @@ public interface ISessionCoordinator
     Task<string> StartSessionAsync(string userId, StartSessionRequest request, Func<SessionEvent, Task> emit, CancellationToken ct);
     Task SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct);
     Task StopSessionAsync(string userId, string sessionId, CancellationToken ct);
+    Task StopSessionAsync(string userId, string sessionId, bool forceKill, CancellationToken ct);
+    Task<(IReadOnlyList<SessionSummary> Items, int TotalCount)> GetSessionHistoryAsync(string userId, int skip, int take, string? stateFilter, CancellationToken ct);
 }

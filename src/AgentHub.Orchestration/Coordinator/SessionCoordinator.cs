@@ -1,4 +1,7 @@
 using AgentHub.Contracts;
+using AgentHub.Orchestration.Data;
+using AgentHub.Orchestration.Data.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace AgentHub.Orchestration.Coordinator;
 
@@ -7,7 +10,9 @@ public sealed class SessionCoordinator(
     IPlacementEngine placement,
     ISanitizationService sanitizer,
     ISkillRegistry skills,
-    ISkillPolicyService policy) : ISessionCoordinator
+    ISkillPolicyService policy,
+    ApprovalService approval,
+    IDbContextFactory<AgentHubDbContext> dbFactory) : ISessionCoordinator
 {
     private readonly IReadOnlyList<ISessionBackend> _backends = backends.ToList();
 
@@ -44,7 +49,11 @@ public sealed class SessionCoordinator(
         if (!selectedBackend.CanHandle(request.Requirements, node))
             throw new InvalidOperationException($"Backend {selectedBackend.Name} cannot handle the selected request.");
 
-        return await selectedBackend.StartAsync(userId, request, placementDecision, emit, ct);
+        // Resolve prompt: Prompt field first, fall back to Reason, then empty string
+        var resolvedPrompt = request.Prompt ?? request.Reason ?? string.Empty;
+        var resolvedRequest = request with { Prompt = resolvedPrompt };
+
+        return await selectedBackend.StartAsync(userId, resolvedRequest, placementDecision, emit, ct);
     }
 
     public async Task SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
@@ -91,5 +100,42 @@ public sealed class SessionCoordinator(
         var session = await GetSessionAsync(sessionId, userId, ct) ?? throw new InvalidOperationException("Session not found.");
         var backend = _backends.First(x => string.Equals(x.Name, session.Backend, StringComparison.OrdinalIgnoreCase));
         await backend.StopAsync(sessionId, forceKill, ct);
+    }
+
+    public async Task<(IReadOnlyList<SessionSummary> Items, int TotalCount)> GetSessionHistoryAsync(
+        string userId, int skip, int take, string? stateFilter, CancellationToken ct)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
+        var query = db.Sessions
+            .Where(s => s.OwnerUserId == userId)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(stateFilter) && Enum.TryParse<SessionState>(stateFilter, ignoreCase: true, out var state))
+        {
+            query = query.Where(s => s.State == state);
+        }
+
+        var totalCount = await query.CountAsync(ct);
+
+        var entities = await query
+            .OrderByDescending(s => s.CreatedUtc)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
+        var items = entities.Select(e => new SessionSummary(
+            e.SessionId,
+            e.OwnerUserId,
+            e.State,
+            e.CreatedUtc,
+            e.Backend,
+            e.Node,
+            System.Text.Json.JsonSerializer.Deserialize<SessionRequirements>(e.RequirementsJson) ?? new SessionRequirements(),
+            e.WorktreePath,
+            e.RiskAcceptedBy
+        )).ToList();
+
+        return (items, totalCount);
     }
 }
