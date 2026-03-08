@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
-using System.Threading.Channels;
 using AgentHub.Contracts;
 using AgentHub.Orchestration;
+using AgentHub.Orchestration.Agents;
 using AgentHub.Orchestration.Backends;
 using AgentHub.Orchestration.Config;
 using AgentHub.Orchestration.Coordinator;
+using AgentHub.Orchestration.Events;
 using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
@@ -49,7 +49,13 @@ builder.Services.AddSingleton<ISessionBackend, InMemoryBackend>();
 builder.Services.AddSingleton<ISessionBackend, SshBackend>();
 builder.Services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
 
-builder.Services.AddSingleton<SessionEventBus>();
+// Durable event service: persists events to DB, broadcasts to live SSE subscribers
+builder.Services.AddSingleton<SseSubscriptionManager>();
+builder.Services.AddSingleton<DurableEventService>();
+
+// Agent adapters: register each adapter as IAgentAdapter, then the registry
+builder.Services.AddSingleton<IAgentAdapter, ClaudeCodeAdapter>();
+builder.Services.AddSingleton<AgentAdapterRegistry>();
 
 var app = builder.Build();
 
@@ -63,6 +69,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
+
+app.MapGet("/api/agents", (AgentAdapterRegistry registry) =>
+    Results.Ok(registry.GetSupportedTypes()));
 
 app.MapGet("/api/hosts", async (IHostRegistry hosts, CancellationToken ct)
     => Results.Ok(await hosts.ListAsync(ct)));
@@ -82,15 +91,15 @@ app.MapGet("/api/sessions/{sessionId}", async (string sessionId, IUserContext us
     return s is null ? Results.NotFound() : Results.Ok(s);
 });
 
-app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, SessionEventBus bus, CancellationToken ct) =>
+app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
 {
-    var sessionId = await coordinator.StartSessionAsync(user.UserId, req, bus.EmitAsync, ct);
+    var sessionId = await coordinator.StartSessionAsync(user.UserId, req, events.EmitAsync, ct);
     return Results.Created($"/api/sessions/{sessionId}", new { sessionId });
 });
 
-app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInputRequest req, IUserContext user, ISessionCoordinator coordinator, SessionEventBus bus, CancellationToken ct) =>
+app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInputRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
 {
-    await coordinator.SendInputAsync(user.UserId, sessionId, req, bus.EmitAsync, ct);
+    await coordinator.SendInputAsync(user.UserId, sessionId, req, events.EmitAsync, ct);
     return Results.Accepted();
 });
 
@@ -100,12 +109,29 @@ app.MapPost("/api/sessions/{sessionId}/stop", async (string sessionId, IUserCont
     return Results.Accepted();
 });
 
-app.MapGet("/api/sessions/{sessionId}/events", async (string sessionId, IUserContext user, ISessionCoordinator coordinator, SessionEventBus bus, CancellationToken ct) =>
+app.MapGet("/api/sessions/{sessionId}/events", async (
+    string sessionId,
+    [Microsoft.AspNetCore.Mvc.FromHeader(Name = "Last-Event-ID")] string? lastEventId,
+    IUserContext user,
+    ISessionCoordinator coordinator,
+    DurableEventService events,
+    CancellationToken ct) =>
 {
     var s = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
     if (s is null) return Results.NotFound();
-    var stream = bus.Subscribe(sessionId, ct);
-    return TypedResults.ServerSentEvents(stream, eventType: "sessionEvent");
+    return TypedResults.ServerSentEvents(
+        events.SubscribeSession(sessionId, lastEventId, ct),
+        eventType: "sessionEvent");
+});
+
+app.MapGet("/api/events", (
+    [Microsoft.AspNetCore.Mvc.FromHeader(Name = "Last-Event-ID")] string? lastEventId,
+    DurableEventService events,
+    CancellationToken ct) =>
+{
+    return TypedResults.ServerSentEvents(
+        events.SubscribeFleet(lastEventId, ct),
+        eventType: "fleetEvent");
 });
 
 app.Run();
@@ -121,39 +147,4 @@ public interface IUserContext
 public sealed class DevUserContext : IUserContext
 {
     public string UserId => "dev-user";
-}
-
-public sealed class SessionEventBus
-{
-    private readonly ConcurrentDictionary<string, ConcurrentBag<ChannelWriter<SessionEvent>>> _subs = new();
-
-    public Task EmitAsync(SessionEvent ev)
-    {
-        if (_subs.TryGetValue(ev.SessionId, out var bag))
-        {
-            foreach (var writer in bag)
-                writer.TryWrite(ev);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public async IAsyncEnumerable<SessionEvent> Subscribe(string sessionId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        var ch = Channel.CreateUnbounded<SessionEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-        var bag = _subs.GetOrAdd(sessionId, _ => new ConcurrentBag<ChannelWriter<SessionEvent>>());
-        bag.Add(ch.Writer);
-
-        ch.Writer.TryWrite(new SessionEvent(sessionId, SessionEventKind.Info, DateTimeOffset.UtcNow, "SSE connected"));
-
-        try
-        {
-            await foreach (var ev in ch.Reader.ReadAllAsync(ct))
-                yield return ev;
-        }
-        finally
-        {
-            ch.Writer.TryComplete();
-        }
-    }
 }
