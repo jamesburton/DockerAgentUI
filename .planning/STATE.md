@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-08T10:44:04Z"
-last_activity: 2026-03-08 -- Plan 01-01 executed
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-08T10:53:55Z"
+last_activity: 2026-03-08 -- Plan 01-03 executed
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 8
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 1 of 4 (Foundation and Event Infrastructure)
-Plan: 1 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-08 -- Plan 01-01 executed
+Last activity: 2026-03-08 -- Plan 01-03 executed
 
-Progress: [█░░░░░░░░░] 8%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 7min
-- Total execution time: 0.12 hours
+- Total plans completed: 2
+- Average duration: 6.5min
+- Total execution time: 0.22 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 1 | 7min | 7min |
+| 01 | 2 | 13min | 6.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (7min)
-- Trend: baseline
+- Last 5 plans: 01-01 (7min), 01-03 (6min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - [01-01]: Dual DbContext registration (Pool + Factory) for scoped DI and singleton services
 - [01-01]: Store enums as strings in SQLite for readability
 - [01-01]: Keep JsonHostRegistry intact, add DbHostRegistry as primary DB-backed implementation
+- [01-03]: Separate AgentAdapterConfig (string agentType) from Contracts AgentDefinition (enum) for flexible config
+- [01-03]: Permission merge: session overrides win for tool lists, OR logic for SkipPermissionPrompts
+- [01-03]: Host daemon protocol uses single-line JSON for SSH stdin/stdout compatibility
+- [01-03]: ClaudeCodeAdapter defensive JSON parsing: attempt parse, fall back to plain StdOut
 
 ### Pending Todos
 
@@ -77,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T10:44:04Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation-and-event-infrastructure/01-01-SUMMARY.md
+Last session: 2026-03-08T10:53:55Z
+Stopped at: Completed 01-03-PLAN.md
+Resume file: .planning/phases/01-foundation-and-event-infrastructure/01-03-SUMMARY.md

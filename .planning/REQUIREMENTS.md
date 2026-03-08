@@ -23,7 +23,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Agent Support
 
-- [ ] **AGENT-01**: System supports multiple agent types via adapter pattern (Claude, Codex, Copilot, Gemini, OpenCode)
+- [x] **AGENT-01**: System supports multiple agent types via adapter pattern (Claude, Codex, Copilot, Gemini, OpenCode)
 - [ ] **AGENT-02**: Skills and policies are defined via configuration files (YAML/JSON)
 - [ ] **AGENT-03**: Inputs to agents pass through a configurable sanitization layer
 - [ ] **AGENT-04**: Destructive agent actions trigger an approval/elevation flow requiring human confirmation
@@ -32,7 +32,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Infrastructure
 
 - [x] **INFRA-01**: Coordinator exposes REST API for session CRUD, host listing, and event streaming
-- [ ] **INFRA-02**: Lightweight host daemon runs on each target machine to receive commands and report status
+- [x] **INFRA-02**: Lightweight host daemon runs on each target machine to receive commands and report status
 - [x] **INFRA-03**: Session state persists in a durable data store (EF Core with pluggable provider)
 
 ### Client Interfaces
@@ -95,13 +95,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-01 | Phase 1 | Pending |
 | MON-02 | Phase 3 | Pending |
 | MON-03 | Phase 3 | Pending |
-| AGENT-01 | Phase 1 | Pending |
+| AGENT-01 | Phase 1 | Complete |
 | AGENT-02 | Phase 2 | Pending |
 | AGENT-03 | Phase 2 | Pending |
 | AGENT-04 | Phase 2 | Pending |
 | AGENT-05 | Phase 2 | Pending |
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | CLI-01 | Phase 3 | Pending |
 | CLI-02 | Phase 3 | Pending |
