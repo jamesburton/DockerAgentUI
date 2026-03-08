@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-08T15:22:39Z"
-last_activity: 2026-03-08 -- Plan 02-03 executed (approval gating, extended sanitization)
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-08T15:34:01Z"
+last_activity: 2026-03-08 -- Plan 02-04 executed (integration wiring, API endpoints, session history)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 57
+  completed_plans: 7
+  percent: 71
 ---
 
 # Project State
@@ -25,29 +25,29 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 2 of 4 (Session Orchestration and Agent Execution)
-Plan: 3 of 4 in current phase (complete)
-Status: In Progress
-Last activity: 2026-03-08 -- Plan 02-03 executed (approval gating, extended sanitization with trust tiers)
+Phase: 2 of 4 (Session Orchestration and Agent Execution) -- COMPLETE
+Plan: 4 of 4 in current phase (complete)
+Status: Phase 2 Complete
+Last activity: 2026-03-08 -- Plan 02-04 executed (integration wiring, API endpoints, session history)
 
-Progress: [█████░░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 7min
-- Total execution time: 0.72 hours
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 3 | 24min | 8min |
-| 02 | 3 | 19min | 6min |
+| 02 | 4 | 26min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (6min), 01-02 (11min), 02-01 (7min), 02-02 (6min), 02-03 (6min)
+- Last 5 plans: 01-02 (11min), 02-01 (7min), 02-02 (6min), 02-03 (6min), 02-04 (7min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -82,6 +82,10 @@ Recent decisions affecting current work:
 - [02-03]: ApprovalService singleton with ConcurrentDictionary + IDbContextFactory (mirrors DurableEventService)
 - [02-03]: TrySetResult for approval race safety between timeout and manual resolution
 - [02-03]: Unknown actions default to Prompt trust tier (safe default)
+- [02-04]: In-memory sorting for paginated queries due to SQLite DateTimeOffset ORDER BY limitation
+- [02-04]: GET /api/sessions returns {items, totalCount} for pagination metadata
+- [02-04]: ISshHostConnectionFactory DI registration (was missing from Phase 2 Plan 02)
+- [02-04]: SessionMonitorService manual factory registration (optional TimeSpan? params not DI-resolvable)
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:22:39Z
-Stopped at: Completed 02-03-PLAN.md
-Resume file: .planning/phases/02-session-orchestration-and-agent-execution/02-03-SUMMARY.md
+Last session: 2026-03-08T15:34:01Z
+Stopped at: Completed 02-04-PLAN.md (Phase 2 complete)
+Resume file: .planning/phases/02-session-orchestration-and-agent-execution/02-04-SUMMARY.md
