@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AgentHub.Cli.Api;
+using AgentHub.Cli.Notifications;
 using AgentHub.Cli.Output;
 using AgentHub.Contracts;
 using Spectre.Console;
@@ -20,6 +21,7 @@ public static class SessionWatchCommand
         AgentHubApiClient apiClient,
         SseStreamReader sseReader,
         IOutputFormatter formatter,
+        ApprovalPromptHandler? approvalHandler,
         CancellationToken ct)
     {
         // Fetch initial session info
@@ -43,7 +45,7 @@ public static class SessionWatchCommand
             return await RunJsonModeAsync(sessionId, sseReader, cts.Token);
         }
 
-        return await RunLiveModeAsync(sessionId, session, sseReader, cts.Token);
+        return await RunLiveModeAsync(sessionId, session, sseReader, approvalHandler, cts.Token);
     }
 
     private static async Task<int> RunJsonModeAsync(
@@ -66,56 +68,87 @@ public static class SessionWatchCommand
     }
 
     private static async Task<int> RunLiveModeAsync(
-        string sessionId, SessionSummary session, SseStreamReader sseReader, CancellationToken ct)
+        string sessionId, SessionSummary session, SseStreamReader sseReader,
+        ApprovalPromptHandler? approvalHandler, CancellationToken ct)
     {
         var lines = new List<string>(MaxBufferLines);
 
-        var table = new Table().Border(TableBorder.Rounded);
-        table.AddColumn("Event");
-        table.Title = new TableTitle(
-            $"Session [bold]{Truncate(sessionId, 8)}[/] | {FormatState(session.State)} | Host: {session.Node ?? "auto"} | Agent: {session.Backend}");
-
-        try
+        while (!ct.IsCancellationRequested)
         {
-            await AnsiConsole.Live(table).StartAsync(async ctx =>
+            SessionEvent? pendingApproval = null;
+
+            var table = new Table().Border(TableBorder.Rounded);
+            table.AddColumn("Event");
+            table.Title = new TableTitle(
+                $"Session [bold]{Truncate(sessionId, 8)}[/] | {FormatState(session.State)} | Host: {session.Node ?? "auto"} | Agent: {session.Backend}");
+
+            // Pre-populate table with buffered lines from previous iteration
+            RebuildTable(table, lines);
+
+            try
             {
-                ctx.Refresh();
-
-                await foreach (var (_, evt) in sseReader.StreamSessionEventsAsync(sessionId, ct: ct))
+                await AnsiConsole.Live(table).StartAsync(async ctx =>
                 {
-                    if (evt.Kind == SessionEventKind.Heartbeat)
-                        continue;
-
-                    var formatted = FormatEvent(evt);
-                    lines.Add(formatted);
-
-                    // Trim buffer
-                    while (lines.Count > MaxBufferLines)
-                        lines.RemoveAt(0);
-
-                    // Rebuild table with latest lines (show last 30 for display)
-                    table.Rows.Clear();
-                    var displayLines = lines.Count > 30 ? lines.Skip(lines.Count - 30) : lines;
-                    foreach (var line in displayLines)
-                        table.AddRow(new Markup(Markup.Escape(line).Replace(
-                            "[red]", "").Replace("[/]", ""))); // safe fallback
-
-                    // Update title with duration
-                    var duration = DateTimeOffset.UtcNow - session.CreatedUtc;
-                    table.Title = new TableTitle(
-                        $"Session [bold]{Truncate(sessionId, 8)}[/] | {FormatState(session.State)} | Duration: {duration:hh\\:mm\\:ss}");
-
                     ctx.Refresh();
-                }
-            });
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // Clean detach
+
+                    await foreach (var (_, evt) in sseReader.StreamSessionEventsAsync(sessionId, ct: ct))
+                    {
+                        if (evt.Kind == SessionEventKind.Heartbeat)
+                            continue;
+
+                        // If this is an approval request and we have a handler, exit Live to prompt
+                        if (evt.Kind == SessionEventKind.ApprovalRequest && approvalHandler is not null)
+                        {
+                            pendingApproval = evt;
+                            return; // Exit Live context so we can show interactive prompt
+                        }
+
+                        var formatted = FormatEvent(evt);
+                        lines.Add(formatted);
+
+                        // Trim buffer
+                        while (lines.Count > MaxBufferLines)
+                            lines.RemoveAt(0);
+
+                        // Rebuild table with latest lines (show last 30 for display)
+                        RebuildTable(table, lines);
+
+                        // Update title with duration
+                        var duration = DateTimeOffset.UtcNow - session.CreatedUtc;
+                        table.Title = new TableTitle(
+                            $"Session [bold]{Truncate(sessionId, 8)}[/] | {FormatState(session.State)} | Duration: {duration:hh\\:mm\\:ss}");
+
+                        ctx.Refresh();
+                    }
+                });
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+
+            if (pendingApproval is not null)
+            {
+                // Handle approval outside of Live context (Spectre.Console Pitfall 6)
+                await approvalHandler!.HandleApprovalEventAsync(pendingApproval, ct);
+                AnsiConsole.MarkupLine("[dim]Resuming watch...[/]");
+                continue; // Restart Live display
+            }
+
+            break; // Stream ended naturally
         }
 
         AnsiConsole.MarkupLine($"\nDetached from session [bold]{Truncate(sessionId, 8)}[/]. Session continues running.");
         return 0;
+    }
+
+    private static void RebuildTable(Table table, List<string> lines)
+    {
+        table.Rows.Clear();
+        var displayLines = lines.Count > 30 ? lines.Skip(lines.Count - 30) : lines;
+        foreach (var line in displayLines)
+            table.AddRow(new Markup(Markup.Escape(line).Replace(
+                "[red]", "").Replace("[/]", ""))); // safe fallback
     }
 
     internal static string FormatEvent(SessionEvent evt)

@@ -162,9 +162,10 @@ var sessionCommand = new Command("session", "Manage agent sessions");
         var sseReader = ResolveSseReader(pr);
         var formatter = ResolveFormatter(pr);
         var isJson = pr.GetValue(jsonOption);
+        var approvalHandler = isJson ? null : new ApprovalPromptHandler(client);
 
         return await SessionWatchCommand.ExecuteAsync(
-            pr.GetValue(idArg)!, isJson, client, sseReader, formatter, ct);
+            pr.GetValue(idArg)!, isJson, client, sseReader, formatter, approvalHandler, ct);
     });
 
     sessionCommand.Add(cmd);
