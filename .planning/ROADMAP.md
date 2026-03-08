@@ -79,10 +79,12 @@ Plans:
   1. Web dashboard shows a fleet overview page listing all hosts and their current session status
   2. User can click into a session and see real-time agent output streamed inline
   3. Dashboard updates live without manual refresh (SSE-driven)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Project scaffold, MudBlazor setup, DashboardApiClient, SseStreamService, Aspire wiring, layout with dark theme, unit tests
+- [ ] 04-02-PLAN.md — Fleet overview page with host sidebar, session data table, polling/SSE toggle, launch dialog, stop capability
+- [ ] 04-03-PLAN.md — Session detail page with terminal output panel, live streaming, history replay, approval handling
 
 ## Progress
 
@@ -94,4 +96,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Foundation and Event Infrastructure | 3/3 | Complete | 2026-03-08 |
 | 2. Session Orchestration and Agent Execution | 5/5 | Complete   | 2026-03-08 |
 | 3. CLI Client | 2/3 | In Progress | - |
-| 4. Web Dashboard | 0/1 | Not started | - |
+| 4. Web Dashboard | 0/3 | Not started | - |
