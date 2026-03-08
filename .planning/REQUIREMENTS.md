@@ -96,10 +96,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-02 | Phase 3 | Pending |
 | MON-03 | Phase 3 | Pending |
 | AGENT-01 | Phase 1 | Complete |
-| AGENT-02 | Phase 2 | Pending |
+| AGENT-02 | Phase 2 | Complete |
 | AGENT-03 | Phase 2 | Complete |
 | AGENT-04 | Phase 2 | Complete |
-| AGENT-05 | Phase 2 | Pending |
+| AGENT-05 | Phase 2 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
