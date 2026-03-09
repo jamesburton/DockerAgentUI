@@ -1,0 +1,202 @@
+@page "/session/{SessionId}"
+@implements IDisposable
+@inject DashboardApiClient Api
+@inject SseStreamService SseStream
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" Class="my-8" />
+}
+else if (_session is null)
+{
+    <MudAlert Severity="Severity.Error" Class="my-4">Session not found.</MudAlert>
+    <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/"))">Back to Fleet</MudButton>
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="2">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Status</MudText>
+                <MudChip T="string" Color="@GetStateColor(_session.State)" Size="Size.Small">
+                    @_session.State.ToString()
+                </MudChip>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Agent Type</MudText>
+                <MudText>@_session.Backend</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Host</MudText>
+                <MudText>@(_session.Node ?? "Unassigned")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Duration</MudText>
+                <MudText>@GetDuration()</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Started</MudText>
+                <MudText>@_session.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss UTC")</MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <div class="d-flex gap-2 mb-4">
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="@(() => Nav.NavigateTo("/"))">
+            Back to Fleet
+        </MudButton>
+        @if (_session.State is SessionState.Running or SessionState.Pending)
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Stop"
+                       OnClick="StopSession">
+                Stop Session
+            </MudButton>
+            <MudButton Color="Color.Error" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.HighlightOff"
+                       OnClick="ForceStopSession">
+                Force Stop
+            </MudButton>
+        }
+    </div>
+
+    @foreach (var approval in _pendingApprovals)
+    {
+        var capturedApproval = approval;
+        <ApprovalAlert ApprovalEvent="capturedApproval"
+                       OnResolved="@(new EventCallback<bool>(this, (bool result) => HandleApprovalResolved(capturedApproval, result)))" />
+    }
+
+    <TerminalOutput Events="_events" SessionId="@SessionId" />
+}
+
+@code {
+    [Parameter] public string SessionId { get; set; } = string.Empty;
+
+    private SessionSummary? _session;
+    private readonly List<SessionEvent> _events = [];
+    private readonly CancellationTokenSource _cts = new();
+    private bool _loading = true;
+    private readonly List<SessionEvent> _pendingApprovals = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _session = await Api.GetSessionAsync(SessionId, _cts.Token);
+            if (_session is null)
+            {
+                _loading = false;
+                return;
+            }
+
+            if (_session.State is SessionState.Running or SessionState.Pending)
+            {
+                var reader = SseStream.SubscribeSession(SessionId, _cts.Token);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await foreach (var evt in reader.ReadAllAsync(_cts.Token))
+                        {
+                            _events.Add(evt);
+                            if (evt.Kind == SessionEventKind.ApprovalRequest)
+                                _pendingApprovals.Add(evt);
+                            if (evt.Kind == SessionEventKind.StateChanged)
+                                _session = await Api.GetSessionAsync(SessionId, _cts.Token);
+                            await InvokeAsync(StateHasChanged);
+                        }
+                    }
+                    catch (OperationCanceledException) { }
+                }, _cts.Token);
+            }
+            else
+            {
+                // Load history with pagination for completed sessions
+                int page = 1;
+                List<SessionEvent> batch;
+                do
+                {
+                    batch = await Api.GetSessionHistoryAsync(SessionId, page, 100, ct: _cts.Token);
+                    _events.AddRange(batch);
+                    page++;
+                } while (batch.Count == 100);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading session: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+    }
+
+    private async Task StopSession()
+    {
+        try
+        {
+            await Api.StopSessionAsync(SessionId, force: false, _cts.Token);
+            Snackbar.Add("Session stop requested.", Severity.Success);
+            _session = await Api.GetSessionAsync(SessionId, _cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to stop session: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ForceStopSession()
+    {
+        try
+        {
+            await Api.StopSessionAsync(SessionId, force: true, _cts.Token);
+            Snackbar.Add("Session force-stopped.", Severity.Success);
+            _session = await Api.GetSessionAsync(SessionId, _cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to force-stop session: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandleApprovalResolved(SessionEvent evt, bool approved)
+    {
+        try
+        {
+            var approvalId = evt.Meta?.GetValueOrDefault("approvalId") ?? evt.Data;
+            await Api.ResolveApprovalAsync(approvalId, approved, _cts.Token);
+            _pendingApprovals.Remove(evt);
+            Snackbar.Add($"Approval {(approved ? "granted" : "rejected")}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to resolve approval: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetDuration()
+    {
+        var elapsed = DateTimeOffset.UtcNow - _session!.CreatedUtc;
+        return elapsed.TotalHours >= 1
+            ? $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m"
+            : $"{elapsed.Minutes}m {elapsed.Seconds}s";
+    }
+
+    private static Color GetStateColor(SessionState state) => state switch
+    {
+        SessionState.Running => Color.Success,
+        SessionState.Pending => Color.Warning,
+        SessionState.Stopped => Color.Default,
+        SessionState.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
