@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-09T12:18:15.400Z"
-last_activity: 2026-03-09 -- Plan 04-03 executed (session detail page with live streaming, terminal output, approval handling)
+stopped_at: Completed 05-01-PLAN.md (Phase 5 complete)
+last_updated: "2026-03-09T12:26:54.217Z"
+last_activity: 2026-03-09 -- Plan 05-01 executed (history endpoint rewrite with typed DTOs, pagination, kind filtering, CLI envelope update)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
   completed_plans: 16
   percent: 100
