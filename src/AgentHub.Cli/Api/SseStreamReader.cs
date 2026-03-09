@@ -80,7 +80,7 @@ public sealed class SseStreamReader
                             if (sessionEvent is null)
                                 continue;
 
-                            var eventId = sseItem.EventId.ToString();
+                            var eventId = sseItem.EventId.Length > 0 ? sseItem.EventId.ToString()! : "";
                             if (!string.IsNullOrEmpty(eventId))
                                 currentLastId = eventId;
 
