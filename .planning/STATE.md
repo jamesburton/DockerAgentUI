@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-09T11:49:00.960Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-09T12:18:15.400Z"
 last_activity: 2026-03-09 -- Plan 04-03 executed (session detail page with live streaming, terminal output, approval handling)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 16
+  completed_plans: 15
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** See what every agent is doing across every machine in real-time, and deploy new agent sessions to any registered host from one place.
-**Current focus:** Phase 4: Web Dashboard
+**Current focus:** Phase 5: History API Contract Alignment
 
 ## Current Position
 
-Phase: 4 of 4 (Web Dashboard)
-Plan: 3 of 3 in current phase (complete)
-Status: Complete
-Last activity: 2026-03-09 -- Plan 04-03 executed (session detail page with live streaming, terminal output, approval handling)
+Phase: 5 of 6 (History API Contract Alignment)
+Plan: 2 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-09 -- Plan 05-02 executed (web client envelope alignment with expandable metadata rows)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100%
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 05 P02 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ Recent decisions affecting current work:
 - [04-01]: Configurable ApiBaseUrl with fallback to Aspire service discovery URI
 - [04-02]: Added @using AgentHub.Web.Components.Shared to _Imports.razor for component resolution across Pages and Shared folders
 - [04-03]: Interactive Server rendermode on App.razor root for full Blazor Server interactivity
+- [Phase 05]: Reuse existing SessionListResponse envelope pattern for SessionHistoryResponse
+- [Phase 05]: HashSet<SessionEvent> for expandable event tracking (reference equality)
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T11:49:00.895Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-history-api-contract-alignment/05-CONTEXT.md
+Last session: 2026-03-09T12:18:15.393Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: None
