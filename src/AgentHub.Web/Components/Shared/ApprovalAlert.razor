@@ -1,0 +1,27 @@
+<MudAlert Severity="Severity.Warning" Dense="true" NoIcon="false" Class="my-2">
+    <div class="d-flex align-center gap-3">
+        <MudText>Approval Required: @ApprovalEvent.Data</MudText>
+        <MudSpacer />
+        <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
+                   Disabled="_resolving" OnClick="() => Resolve(true)">
+            Approve
+        </MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
+                   Disabled="_resolving" OnClick="() => Resolve(false)">
+            Reject
+        </MudButton>
+    </div>
+</MudAlert>
+
+@code {
+    [Parameter] public SessionEvent ApprovalEvent { get; set; } = null!;
+    [Parameter] public EventCallback<bool> OnResolved { get; set; }
+
+    private bool _resolving;
+
+    private async Task Resolve(bool approved)
+    {
+        _resolving = true;
+        await OnResolved.InvokeAsync(approved);
+    }
+}

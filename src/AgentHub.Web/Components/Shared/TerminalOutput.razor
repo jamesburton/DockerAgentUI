@@ -1,0 +1,54 @@
+@inject IJSRuntime JS
+
+<div class="terminal-panel" style="height: calc(100vh - 300px); min-height: 400px;">
+    <div class="terminal-toolbar">
+        <MudText Typo="Typo.caption">Output</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@(_autoScroll ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                       Size="Size.Small"
+                       aria-label="@(_autoScroll ? "Auto-scroll on (click to pause)" : "Auto-scroll off (click to resume)")"
+                       OnClick="ToggleAutoScroll" />
+    </div>
+    <div class="terminal-content" id="terminal-@SessionId" style="overflow-anchor: auto;">
+        @foreach (var evt in Events)
+        {
+            <pre class="@GetEventClass(evt.Kind)">@evt.Data</pre>
+        }
+        <div id="terminal-anchor-@SessionId" style="overflow-anchor: auto; height: 1px;"></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<SessionEvent> Events { get; set; } = [];
+    [Parameter] public string SessionId { get; set; } = string.Empty;
+
+    private bool _autoScroll = true;
+
+    private void ToggleAutoScroll() => _autoScroll = !_autoScroll;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_autoScroll && Events.Count > 0)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("eval",
+                    $"document.getElementById('terminal-{SessionId}')?.scrollTo(0, document.getElementById('terminal-{SessionId}').scrollHeight)");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, ignore
+            }
+        }
+    }
+
+    private static string GetEventClass(SessionEventKind kind) => kind switch
+    {
+        SessionEventKind.StdOut => "terminal-stdout",
+        SessionEventKind.StdErr => "terminal-stderr",
+        SessionEventKind.StateChanged => "terminal-state",
+        SessionEventKind.ApprovalRequest => "terminal-state",
+        SessionEventKind.ApprovalResponse => "terminal-state",
+        _ => "terminal-info"
+    };
+}
