@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/9.2.1">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AgentHub.Service\AgentHub.Service.csproj" />
-    <ProjectReference Include="..\AgentHub.Web\AgentHub.Web.csproj" />
+    <ProjectReference Include="..\AgentHub.Service\AgentHub.Service.csproj" IsAspireProjectResource="true" />
+    <ProjectReference Include="..\AgentHub.Web\AgentHub.Web.csproj" IsAspireProjectResource="true" />
   </ItemGroup>
 </Project>
