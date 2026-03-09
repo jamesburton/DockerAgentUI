@@ -99,7 +99,11 @@ Plans:
   3. CLI `ah session logs <id>` shows event metadata (Meta dictionary populated, not null)
   4. Web SessionDetail history replay shows event metadata correctly
   5. Integration tests verify response shape matches `SessionEvent` contract
-**Plans:** 0/0
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Server endpoint rewrite with ToDto/pagination/kind filter, integration tests, CLI client envelope update
+- [ ] 05-02-PLAN.md — Web client envelope update, SessionDetail pagination fix, TerminalOutput expandable metadata rows
 
 ### Phase 6: Client Wiring and Polish
 **Goal**: All API endpoints have client callers, host resource metrics are populated, and minor quality issues are resolved
@@ -127,5 +131,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Session Orchestration and Agent Execution | 5/5 | Complete   | 2026-03-08 |
 | 3. CLI Client | 2/3 | In Progress | - |
 | 4. Web Dashboard | 3/3 | Complete   | 2026-03-09 |
-| 5. History API Contract Alignment | 0/0 | Pending | - |
+| 5. History API Contract Alignment | 0/2 | Planned | - |
 | 6. Client Wiring and Polish | 0/0 | Pending | - |
