@@ -80,6 +80,14 @@ public sealed class AgentHubApiClient
             ?? [];
     }
 
+    // -- Host Inventory --
+
+    public async Task RefreshInventoryAsync(string hostId, CancellationToken ct = default)
+        => await _http.PostAsync($"/api/hosts/{Uri.EscapeDataString(hostId)}/refresh-inventory", null, ct);
+
+    public async Task RefreshAllInventoryAsync(CancellationToken ct = default)
+        => await _http.PostAsync("/api/hosts/refresh-inventory", null, ct);
+
     // -- Session History --
 
     public async Task<(List<SessionEvent> Items, int TotalCount)> GetSessionHistoryAsync(

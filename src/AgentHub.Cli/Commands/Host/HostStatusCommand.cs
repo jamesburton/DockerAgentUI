@@ -56,6 +56,8 @@ public static class HostStatusCommand
         table.AddColumn("OS");
         table.AddColumn("CPU%");
         table.AddColumn("Memory");
+        table.AddColumn("Agents");
+        table.AddColumn("Disk");
         table.AddColumn("Sessions");
 
         foreach (var h in hosts)
@@ -76,7 +78,14 @@ public static class HostStatusCommand
         var cpu = h.CpuPercent.HasValue ? FormatCpu(h.CpuPercent.Value) : "--";
         var mem = h.MemUsedMb.HasValue && h.MemTotalMb.HasValue
             ? FormatMem(h.MemUsedMb.Value, h.MemTotalMb.Value) : "--";
-        table.AddRow(Markup.Escape(h.DisplayName), Markup.Escape(h.Os), cpu, mem, "--");
+        var agents = h.Inventory?.Agents is { Count: > 0 }
+            ? string.Join(",", h.Inventory.Agents.Select(a => a.Name))
+            : "--";
+        var disk = h.Inventory?.DiskFreeGb.HasValue == true
+            ? $"{h.Inventory.DiskFreeGb:F1} GB"
+            : "--";
+        table.AddRow(Markup.Escape(h.DisplayName), Markup.Escape(h.Os), cpu, mem,
+            Markup.Escape(agents), Markup.Escape(disk), "--");
     }
 
     private static string FormatCpu(double cpuPercent)
