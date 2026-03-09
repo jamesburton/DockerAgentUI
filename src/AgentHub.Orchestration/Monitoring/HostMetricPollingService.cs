@@ -20,6 +20,7 @@ public sealed class HostMetricPollingService : BackgroundService
 {
     private readonly IDbContextFactory<AgentHubDbContext> _dbFactory;
     private readonly ISshHostConnectionFactory _connectionFactory;
+    private readonly HostMetricCache _cache;
     private readonly DurableEventService _events;
     private readonly ILogger<HostMetricPollingService> _logger;
     private readonly string _sshKeyPath;
@@ -29,12 +30,14 @@ public sealed class HostMetricPollingService : BackgroundService
     public HostMetricPollingService(
         IDbContextFactory<AgentHubDbContext> dbFactory,
         ISshHostConnectionFactory connectionFactory,
+        HostMetricCache cache,
         DurableEventService events,
         ILogger<HostMetricPollingService> logger,
         IConfiguration configuration)
     {
         _dbFactory = dbFactory;
         _connectionFactory = connectionFactory;
+        _cache = cache;
         _events = events;
         _logger = logger;
         _sshKeyPath = configuration["Ssh:PrivateKeyPath"]
@@ -124,6 +127,8 @@ public sealed class HostMetricPollingService : BackgroundService
             host.MetricsUpdatedUtc = DateTimeOffset.UtcNow;
 
             await db.SaveChangesAsync(ct);
+
+            _cache.UpdateMetrics(host.HostId, cpu, memUsed, memTotal);
 
             await _events.EmitAsync(new SessionEvent(
                 SessionId: "",

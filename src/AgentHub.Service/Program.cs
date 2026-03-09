@@ -55,8 +55,15 @@ builder.Services.AddSingleton<IHostedService>(sp =>
         sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
         sp.GetRequiredService<ILogger<SessionMonitorService>>()));
 
+// Host metric cache: shared in-memory cache for placement engine
+builder.Services.AddSingleton<HostMetricCache>();
+
 // Host metric polling: SSHs into hosts every 30s to collect CPU/memory stats
 builder.Services.AddHostedService<HostMetricPollingService>();
+
+// Host inventory polling: SSHs into hosts every 60min to discover agent CLIs, disk, git
+builder.Services.AddSingleton<HostInventoryPollingService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<HostInventoryPollingService>());
 
 builder.Services.AddSingleton<ISshHostConnectionFactory, SshHostConnectionFactory>();
 
@@ -86,6 +93,25 @@ app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
 
 app.MapGet("/api/hosts", async (IHostRegistry hosts, CancellationToken ct)
     => Results.Ok(await hosts.ListAsync(ct)));
+
+// On-demand inventory refresh: single host
+app.MapPost("/api/hosts/{hostId}/refresh-inventory", async (
+    string hostId,
+    HostInventoryPollingService inventoryService,
+    CancellationToken ct) =>
+{
+    await inventoryService.RefreshHostAsync(hostId, ct);
+    return Results.Accepted();
+});
+
+// On-demand inventory refresh: all hosts
+app.MapPost("/api/hosts/refresh-inventory", async (
+    HostInventoryPollingService inventoryService,
+    CancellationToken ct) =>
+{
+    await inventoryService.RunOnceAsync(ct);
+    return Results.Accepted();
+});
 
 app.MapGet("/api/skills", (ISkillRegistry skills)
     => Results.Ok(skills.GetAll()));
