@@ -58,6 +58,9 @@ builder.Services.AddSingleton<IHostedService>(sp =>
         sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
         sp.GetRequiredService<ILogger<SessionMonitorService>>()));
 
+// Host metric polling: SSHs into hosts every 30s to collect CPU/memory stats
+builder.Services.AddHostedService<HostMetricPollingService>();
+
 builder.Services.AddSingleton<ISshHostConnectionFactory, SshHostConnectionFactory>();
 
 builder.Services.AddSingleton<ISessionBackend, InMemoryBackend>();
