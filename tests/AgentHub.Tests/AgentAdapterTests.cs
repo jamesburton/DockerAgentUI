@@ -1,33 +1,13 @@
 using System.Text.Json;
 using AgentHub.Contracts;
 using AgentHub.Orchestration.Agents;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AgentHub.Tests;
 
 public class AgentAdapterTests
 {
-    private readonly ClaudeCodeAdapter _adapter = new(NullLogger<ClaudeCodeAdapter>.Instance);
-
-    [Fact]
-    public void Registry_Resolves_ClaudeCodeAdapter_For_ClaudeCode_Type()
-    {
-        var registry = new AgentAdapterRegistry(new IAgentAdapter[] { _adapter });
-        var resolved = registry.GetAdapter("claude-code");
-
-        Assert.NotNull(resolved);
-        Assert.IsType<ClaudeCodeAdapter>(resolved);
-    }
-
-    [Fact]
-    public void Registry_Returns_Null_For_Unknown_AgentType()
-    {
-        var registry = new AgentAdapterRegistry(new IAgentAdapter[] { _adapter });
-        var resolved = registry.GetAdapter("unknown-agent");
-
-        Assert.Null(resolved);
-    }
+    private readonly ClaudeCodeAdapter _adapter = new();
 
     [Fact]
     public void ClaudeCodeAdapter_AgentType_Returns_ClaudeCode()
@@ -179,25 +159,6 @@ public class AgentAdapterTests
         Assert.Equal(new[] { "Bash" }, merged.AllowedTools);
         // Session has no DisallowedTools override, so agent default wins
         Assert.Equal(new[] { "Bash" }, merged.DisallowedTools);
-    }
-
-    [Fact]
-    public void Registry_GetSupportedTypes_Returns_All_Registered()
-    {
-        var registry = new AgentAdapterRegistry(new IAgentAdapter[] { _adapter });
-        var types = registry.GetSupportedTypes();
-
-        Assert.Single(types);
-        Assert.Contains("claude-code", types);
-    }
-
-    [Fact]
-    public void Registry_Resolves_CaseInsensitive()
-    {
-        var registry = new AgentAdapterRegistry(new IAgentAdapter[] { _adapter });
-        var resolved = registry.GetAdapter("Claude-Code");
-
-        Assert.NotNull(resolved);
     }
 
     [Fact]

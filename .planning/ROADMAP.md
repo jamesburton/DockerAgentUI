@@ -117,7 +117,7 @@ Plans:
   4. Host resource metrics (CPU, memory) are populated from SSH status reports and display real values
   5. FleetOverview SSE updates incrementally (patch state) rather than full reload
   6. CS8602 nullable warning in SseStreamReader.cs resolved
-  7. API documentation/spec alignment: approval endpoint path matches implementation
+  7. API documentation/spec alignment: approval endpoint uses `/api/approvals/{approvalId}/resolve`
 **Plans:** 3 plans
 
 Plans:

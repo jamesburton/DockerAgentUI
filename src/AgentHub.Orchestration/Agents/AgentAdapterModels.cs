@@ -15,37 +15,6 @@ public sealed record AgentStartRequest(
     AgentAdapterConfig? AgentConfig = null);
 
 /// <summary>
-/// Represents a running agent process with output stream and control handles.
-/// </summary>
-public sealed record AgentProcess(
-    IAsyncEnumerable<AgentOutputLine> Output,
-    Func<string, Task> SendInput,
-    Func<Task> Stop,
-    Task Completion);
-
-/// <summary>
-/// A single line of output from an agent process.
-/// </summary>
-public sealed record AgentOutputLine(
-    AgentOutputKind Kind,
-    string Content,
-    DateTimeOffset Timestamp);
-
-/// <summary>
-/// Classifies agent output lines.
-/// </summary>
-public enum AgentOutputKind
-{
-    StdOut,
-    StdErr,
-    Json,
-    ToolUse,
-    Result,
-    Error,
-    System
-}
-
-/// <summary>
 /// Configuration for an agent adapter, loaded from config/agents/*.json.
 /// Uses string agent type for flexible matching (e.g., "claude-code").
 /// </summary>

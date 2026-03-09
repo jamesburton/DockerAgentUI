@@ -13,12 +13,6 @@ public interface IAgentAdapter
     string AgentType { get; }
 
     /// <summary>
-    /// Starts the agent process and returns a handle for streaming output,
-    /// sending input, and stopping the process.
-    /// </summary>
-    Task<AgentProcess> StartAsync(AgentStartRequest request, CancellationToken ct);
-
-    /// <summary>
     /// Builds the CLI argument list for the given request. Public for testability.
     /// </summary>
     IReadOnlyList<string> BuildCommandArgs(AgentStartRequest request);

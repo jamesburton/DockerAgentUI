@@ -50,9 +50,6 @@ builder.Services.AddSingleton<IWorktreeProvider, GitWorktreeProvider>();
 
 // Phase 2 services
 builder.Services.AddSingleton<ApprovalService>();
-builder.Services.AddSingleton<ConfigLoader>();
-builder.Services.AddSingleton<ConfigScopeMerger>();
-builder.Services.AddSingleton<ConfigResolutionService>();
 builder.Services.AddSingleton<IHostedService>(sp =>
     new SessionMonitorService(
         sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
@@ -71,9 +68,8 @@ builder.Services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
 builder.Services.AddSingleton<SseSubscriptionManager>();
 builder.Services.AddSingleton<DurableEventService>();
 
-// Agent adapters: register each adapter as IAgentAdapter, then the registry
+// Agent adapter
 builder.Services.AddSingleton<IAgentAdapter, ClaudeCodeAdapter>();
-builder.Services.AddSingleton<AgentAdapterRegistry>();
 
 var app = builder.Build();
 
@@ -87,9 +83,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
-
-app.MapGet("/api/agents", (AgentAdapterRegistry registry) =>
-    Results.Ok(registry.GetSupportedTypes()));
 
 app.MapGet("/api/hosts", async (IHostRegistry hosts, CancellationToken ct)
     => Results.Ok(await hosts.ListAsync(ct)));
@@ -173,13 +166,6 @@ app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInpu
 app.MapDelete("/api/sessions/{sessionId}", async (string sessionId, bool? force, IUserContext user, ISessionCoordinator coordinator, CancellationToken ct) =>
 {
     await coordinator.StopSessionAsync(user.UserId, sessionId, forceKill: force ?? false, ct);
-    return Results.Accepted();
-});
-
-// Keep old POST stop endpoint for backward compatibility
-app.MapPost("/api/sessions/{sessionId}/stop", async (string sessionId, IUserContext user, ISessionCoordinator coordinator, CancellationToken ct) =>
-{
-    await coordinator.StopSessionAsync(user.UserId, sessionId, ct);
     return Results.Accepted();
 });
 
