@@ -3,6 +3,7 @@ using System;
 using AgentHub.Orchestration.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgentHub.Orchestration.Migrations
 {
     [DbContext(typeof(AgentHubDbContext))]
-    partial class AgentHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260309153831_AddHostMetricColumns")]
+    partial class AddHostMetricColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
