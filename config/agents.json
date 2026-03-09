@@ -1,0 +1,16 @@
+{
+  "agents": [
+    {
+      "name": "claude",
+      "versionFlag": "--version",
+      "versionPattern": "claude-code/(\\d+\\.\\d+\\.\\d+)",
+      "capabilities": { "1.0.0+": ["code-generation", "file-edit", "bash"] }
+    },
+    {
+      "name": "codex",
+      "versionFlag": "--version",
+      "versionPattern": "(\\d+\\.\\d+\\.\\d+)",
+      "capabilities": { "0.1.0+": ["code-generation"] }
+    }
+  ]
+}

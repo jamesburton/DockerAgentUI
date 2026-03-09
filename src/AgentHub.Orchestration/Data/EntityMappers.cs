@@ -84,6 +84,10 @@ public static class EntityMappers
             ? null
             : JsonSerializer.Deserialize<Dictionary<string, string>>(entity.LabelsJson, JsonOpts);
 
+        var inventory = string.IsNullOrEmpty(entity.InventoryJson)
+            ? null
+            : JsonSerializer.Deserialize<HostInventory>(entity.InventoryJson, JsonOpts);
+
         return new HostRecord(
             HostId: entity.HostId,
             DisplayName: entity.DisplayName,
@@ -95,7 +99,8 @@ public static class EntityMappers
             Address: entity.Address,
             CpuPercent: entity.CpuPercent,
             MemUsedMb: entity.MemUsedMb,
-            MemTotalMb: entity.MemTotalMb);
+            MemTotalMb: entity.MemTotalMb,
+            Inventory: inventory);
     }
 
     public static HostEntity ToEntity(this HostRecord dto)
@@ -113,7 +118,10 @@ public static class EntityMappers
                 : null,
             Address = dto.Address,
             LastSeenUtc = DateTimeOffset.UtcNow,
-            Status = "unknown"
+            Status = "unknown",
+            InventoryJson = dto.Inventory is not null
+                ? JsonSerializer.Serialize(dto.Inventory, JsonOpts)
+                : null
         };
     }
 }

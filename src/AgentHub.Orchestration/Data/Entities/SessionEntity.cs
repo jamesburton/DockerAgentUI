@@ -24,6 +24,10 @@ public class SessionEntity
     public string? TimeLimit { get; set; }
     public string? CleanupPolicy { get; set; }
 
+    // Phase 7 additions
+    public string? ParentSessionId { get; set; }
+    public string? DispatchId { get; set; }
+
     public List<SessionEventEntity> Events { get; set; } = [];
     public List<ApprovalEntity> Approvals { get; set; } = [];
 }

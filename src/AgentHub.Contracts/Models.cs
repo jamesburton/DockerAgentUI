@@ -106,7 +106,19 @@ public sealed record HostRecord(
     string? Address = null,
     double? CpuPercent = null,
     long? MemUsedMb = null,
-    long? MemTotalMb = null);
+    long? MemTotalMb = null,
+    HostInventory? Inventory = null);
+
+public sealed record HostInventory(
+    List<AgentInfo> Agents,
+    double? DiskFreeGb,
+    string? GitVersion);
+
+public sealed record AgentInfo(
+    string Name,
+    string? Version,
+    string? Path,
+    List<string>? Capabilities);
 
 public sealed record SkillManifest(
     string Id,

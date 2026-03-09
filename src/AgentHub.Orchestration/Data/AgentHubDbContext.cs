@@ -19,6 +19,12 @@ public class AgentHubDbContext(DbContextOptions<AgentHubDbContext> options)
             e.HasIndex(x => x.OwnerUserId);
             e.HasIndex(x => x.State);
             e.Property(x => x.State).HasConversion<string>();
+
+            // Self-referencing FK for multi-agent coordination
+            e.HasOne<SessionEntity>()
+                .WithMany()
+                .HasForeignKey(x => x.ParentSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<SessionEventEntity>(e =>
