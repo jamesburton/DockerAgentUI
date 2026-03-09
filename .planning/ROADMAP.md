@@ -118,7 +118,12 @@ Plans:
   5. FleetOverview SSE updates incrementally (patch state) rather than full reload
   6. CS8602 nullable warning in SseStreamReader.cs resolved
   7. API documentation/spec alignment: approval endpoint path matches implementation
-**Plans:** 0/0
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Client input wiring: SendInputAsync on both API clients, CLI session input command, watch input hotkey, Web input bar
+- [ ] 06-02-PLAN.md — Host metric infrastructure: HostEntity columns, HostMetricPollingService, HostMetrics SSE events
+- [ ] 06-03-PLAN.md — FleetOverview incremental SSE patching, HostMetrics sidebar delivery, CS8602 fix, approval path alignment
 
 ## Progress
 
@@ -132,4 +137,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. CLI Client | 2/3 | In Progress | - |
 | 4. Web Dashboard | 3/3 | Complete   | 2026-03-09 |
 | 5. History API Contract Alignment | 0/2 | Planned | - |
-| 6. Client Wiring and Polish | 0/0 | Pending | - |
+| 6. Client Wiring and Polish | 0/3 | Planned | - |
