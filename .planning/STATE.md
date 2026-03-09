@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-01-PLAN.md (Phase 5 complete)
-last_updated: "2026-03-09T12:26:54.217Z"
+stopped_at: Phase 6 context gathered
+last_updated: "2026-03-09T14:35:02.047Z"
 last_activity: 2026-03-09 -- Plan 05-01 executed (history endpoint rewrite with typed DTOs, pagination, kind filtering, CLI envelope update)
 progress:
   total_phases: 6
@@ -120,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T12:21:42Z
-Stopped at: Completed 05-01-PLAN.md (Phase 5 complete)
-Resume file: None
+Last session: 2026-03-09T14:35:02.029Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-client-wiring-and-polish/06-CONTEXT.md
