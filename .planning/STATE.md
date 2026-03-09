@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** See what every agent is doing across every machine in real-time, and deploy new agent sessions to any registered host from one place.
-**Current focus:** Phase 5: History API Contract Alignment
+**Current focus:** Phase 6: Client Wiring and Polish
 
 ## Current Position
 
-Phase: 5 of 6 (History API Contract Alignment)
-Plan: 2 of 2 in current phase (complete)
-Status: Complete
-Last activity: 2026-03-09 -- Plan 05-01 executed (history endpoint rewrite with typed DTOs, pagination, kind filtering, CLI envelope update)
+Phase: 6 of 6 (Client Wiring and Polish)
+Plan: 1 of 3 in current phase (complete)
+Status: In Progress
+Last activity: 2026-03-09 -- Plan 06-01 executed (SendInputAsync wired to CLI and Web clients)
 
-Progress: [██████████] 100%
+Progress: [█████████▒] 94%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██████████] 100%
 *Updated after each plan completion*
 | Phase 05 P01 | 8min | 2 tasks | 4 files |
 | Phase 05 P02 | 3min | 2 tasks | 4 files |
+| Phase 06 P01 | 8min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [05-01]: Static HistoryJson.Options field for reusable JSON serializer config on history endpoint
 - [Phase 05]: Reuse existing SessionListResponse envelope pattern for SessionHistoryResponse
 - [Phase 05]: HashSet<SessionEvent> for expandable event tracking (reference equality)
+- [06-01]: Reuse Live context exit pattern for input hotkey (same as approval prompts)
+- [06-01]: Sticky bottom bar with position:sticky for web input (avoids layout shift)
 
 ### Pending Todos
 
@@ -120,6 +123,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T14:35:02.029Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-client-wiring-and-polish/06-CONTEXT.md
+Last session: 2026-03-09T15:07:28Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: .planning/phases/06-client-wiring-and-polish/06-01-SUMMARY.md
