@@ -112,9 +112,9 @@ app.MapGet("/api/sessions/{sessionId}", async (string sessionId, IUserContext us
     return s is null ? Results.NotFound() : Results.Ok(s);
 });
 
-// Session history: full event replay
+// Session history: full event replay with pagination, kind filtering, typed DTOs
 app.MapGet("/api/sessions/{sessionId}/history", async (string sessionId, IUserContext user, ISessionCoordinator coordinator,
-    IDbContextFactory<AgentHubDbContext> dbFactory, CancellationToken ct) =>
+    IDbContextFactory<AgentHubDbContext> dbFactory, int? page, int? pageSize, string? kind, CancellationToken ct) =>
 {
     var s = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
     if (s is null) return Results.NotFound();
@@ -124,19 +124,34 @@ app.MapGet("/api/sessions/{sessionId}/history", async (string sessionId, IUserCo
         .Where(e => e.SessionId == sessionId)
         .ToListAsync(ct);
 
-    var events = rawEvents
-        .OrderBy(e => e.TsUtc)
-        .Select(e => new
+    // In-memory sort (Phase 2 SQLite DateTimeOffset limitation)
+    var sorted = rawEvents.OrderBy(e => e.TsUtc).AsEnumerable();
+
+    // Kind filter (comma-separated, case-insensitive per locked decision)
+    if (!string.IsNullOrEmpty(kind))
+    {
+        var kindValues = kind.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parsedKinds = new List<SessionEventKind>();
+        foreach (var k in kindValues)
         {
-            e.Id,
-            e.SessionId,
-            Kind = e.Kind.ToString(),
-            e.TsUtc,
-            e.Data,
-            e.MetaJson
-        })
+            if (!Enum.TryParse<SessionEventKind>(k, ignoreCase: true, out var parsed))
+                return Results.BadRequest(new { error = $"Invalid kind value: '{k}'" });
+            parsedKinds.Add(parsed);
+        }
+        sorted = sorted.Where(e => parsedKinds.Contains(e.Kind));
+    }
+
+    var filtered = sorted.ToList();
+    var totalCount = filtered.Count;
+    var p = page ?? 1;
+    var ps = Math.Clamp(pageSize ?? 100, 1, 500);
+    var items = filtered
+        .Skip((p - 1) * ps)
+        .Take(ps)
+        .Select(e => e.ToDto())
         .ToList();
-    return Results.Ok(events);
+
+    return Results.Json(new { items, totalCount }, HistoryJson.Options);
 });
 
 app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
@@ -198,6 +213,15 @@ app.MapGet("/api/events", (
 });
 
 app.Run();
+
+// JSON options for history endpoint (enum-as-string, camelCase)
+static partial class HistoryJson
+{
+    internal static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+}
 
 // Make the auto-generated Program class accessible to integration tests
 public partial class Program { }

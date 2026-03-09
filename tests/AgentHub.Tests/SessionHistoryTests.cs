@@ -81,22 +81,23 @@ public class SessionHistoryTests : IDisposable
     public async Task GetSessionHistory_ReturnsEventsOrderedByTimestamp()
     {
         var sessionId = await SeedSessionWithEvents("dev-user", 3);
-
-        // Also seed the session in InMemoryBackend so coordinator.GetSessionAsync finds it
         await SeedSessionInBackend(sessionId);
 
         var response = await _client.GetAsync($"/api/sessions/{sessionId}/history");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var events = await response.Content.ReadFromJsonAsync<JsonElement[]>(JsonOpts);
-        Assert.NotNull(events);
-        Assert.Equal(3, events.Length);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+        var totalCount = json.GetProperty("totalCount").GetInt32();
+
+        Assert.Equal(3, items.GetArrayLength());
+        Assert.Equal(3, totalCount);
 
         // Verify ordered by timestamp ascending
-        for (int i = 1; i < events.Length; i++)
+        for (int i = 1; i < items.GetArrayLength(); i++)
         {
-            var prev = events[i - 1].GetProperty("tsUtc").GetDateTimeOffset();
-            var curr = events[i].GetProperty("tsUtc").GetDateTimeOffset();
+            var prev = items[i - 1].GetProperty("tsUtc").GetDateTimeOffset();
+            var curr = items[i].GetProperty("tsUtc").GetDateTimeOffset();
             Assert.True(curr >= prev, "Events should be ordered by timestamp ascending");
         }
     }
@@ -106,6 +107,123 @@ public class SessionHistoryTests : IDisposable
     {
         var response = await _client.GetAsync("/api/sessions/nonexistent/history");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_ReturnsPaginatedEnvelope()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 5);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history?page=1&pageSize=2");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+        var totalCount = json.GetProperty("totalCount").GetInt32();
+
+        Assert.Equal(2, items.GetArrayLength());
+        Assert.Equal(5, totalCount);
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_WithKindFilter()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 3, SessionEventKind.StdOut);
+        await SeedEventsForSession(sessionId, 2, SessionEventKind.StdErr, offsetSeconds: 10);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history?kind=StdOut");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+
+        Assert.Equal(3, items.GetArrayLength());
+        for (int i = 0; i < items.GetArrayLength(); i++)
+        {
+            Assert.Equal("StdOut", items[i].GetProperty("kind").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_WithMultiKindFilter()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 2, SessionEventKind.StdOut);
+        await SeedEventsForSession(sessionId, 2, SessionEventKind.StdErr, offsetSeconds: 10);
+        await SeedEventsForSession(sessionId, 1, SessionEventKind.Info, offsetSeconds: 20);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history?kind=StdOut,StdErr");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+
+        Assert.Equal(4, items.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_InvalidKind_Returns400()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 1);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history?kind=Bogus");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_TotalCountReflectsFilter()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 3, SessionEventKind.StdOut);
+        await SeedEventsForSession(sessionId, 2, SessionEventKind.StdErr, offsetSeconds: 10);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history?kind=StdOut");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var totalCount = json.GetProperty("totalCount").GetInt32();
+
+        Assert.Equal(3, totalCount);
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_MetaDeserialized()
+    {
+        var meta = new Dictionary<string, string> { { "key", "val" } };
+        var sessionId = await SeedSessionWithEvents("dev-user", 1, meta: meta);
+        await SeedSessionInBackend(sessionId);
+
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+        var firstItem = items[0];
+        var metaProp = firstItem.GetProperty("meta");
+
+        // Meta should be an object, not a string
+        Assert.Equal(JsonValueKind.Object, metaProp.ValueKind);
+        Assert.Equal("val", metaProp.GetProperty("key").GetString());
+    }
+
+    [Fact]
+    public async Task GetSessionHistory_DefaultPageSize100()
+    {
+        var sessionId = await SeedSessionWithEvents("dev-user", 5);
+        await SeedSessionInBackend(sessionId);
+
+        // Request without page/pageSize params
+        var response = await _client.GetAsync($"/api/sessions/{sessionId}/history");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOpts);
+        var items = json.GetProperty("items");
+
+        // All 5 returned (under default 100)
+        Assert.Equal(5, items.GetArrayLength());
     }
 
     // --- DELETE /api/sessions/{id} ---
@@ -215,7 +333,8 @@ public class SessionHistoryTests : IDisposable
         await db.SaveChangesAsync();
     }
 
-    private async Task<string> SeedSessionWithEvents(string userId, int eventCount)
+    private async Task<string> SeedSessionWithEvents(string userId, int eventCount,
+        SessionEventKind kind = SessionEventKind.StdOut, Dictionary<string, string>? meta = null)
     {
         var sessionId = $"hist-{Guid.NewGuid():N}";
         using var scope = _factory.Services.CreateScope();
@@ -236,14 +355,36 @@ public class SessionHistoryTests : IDisposable
             db.Events.Add(new SessionEventEntity
             {
                 SessionId = sessionId,
-                Kind = SessionEventKind.StdOut,
+                Kind = kind,
                 TsUtc = DateTimeOffset.UtcNow.AddSeconds(i),
-                Data = $"output-line-{i}"
+                Data = $"output-line-{i}",
+                MetaJson = meta != null ? JsonSerializer.Serialize(meta) : null
             });
         }
 
         await db.SaveChangesAsync();
         return sessionId;
+    }
+
+    private async Task SeedEventsForSession(string sessionId, int count,
+        SessionEventKind kind = SessionEventKind.StdOut, Dictionary<string, string>? meta = null, int offsetSeconds = 0)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AgentHubDbContext>();
+
+        for (int i = 0; i < count; i++)
+        {
+            db.Events.Add(new SessionEventEntity
+            {
+                SessionId = sessionId,
+                Kind = kind,
+                TsUtc = DateTimeOffset.UtcNow.AddSeconds(offsetSeconds + i),
+                Data = $"output-{kind}-{i}",
+                MetaJson = meta != null ? JsonSerializer.Serialize(meta) : null
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 
     private async Task SeedSessionInBackend(string sessionId)
