@@ -1,10 +1,11 @@
 ---
 phase: 5
 slug: history-api-contract-alignment
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-09
+validated: 2026-03-09
 ---
 
 # Phase 5 — Validation Strategy
@@ -38,14 +39,14 @@ created: 2026-03-09
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 05-01-01 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_ReturnsSessionEventDtos"` | ❌ W0 | ⬜ pending |
-| 05-01-02 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_ReturnsPaginatedEnvelope"` | ❌ W0 | ⬜ pending |
-| 05-01-03 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_WithKindFilter"` | ❌ W0 | ⬜ pending |
-| 05-01-04 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_InvalidKind_Returns400"` | ❌ W0 | ⬜ pending |
-| 05-01-05 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_TotalCountReflectsFilter"` | ❌ W0 | ⬜ pending |
-| 05-01-06 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_MetaDeserialized"` | ❌ W0 | ⬜ pending |
-| 05-02-01 | 02 | 1 | CLI-01 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.CliClient_HandlesEnvelope"` | ❌ W0 | ⬜ pending |
-| 05-02-02 | 02 | 1 | WEB-02 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.WebClient_HandlesEnvelope"` | ❌ W0 | ⬜ pending |
+| 05-01-01 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_ReturnsEventsOrderedByTimestamp"` | ✅ | ✅ green |
+| 05-01-02 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_ReturnsPaginatedEnvelope"` | ✅ | ✅ green |
+| 05-01-03 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_WithKindFilter"` | ✅ | ✅ green |
+| 05-01-04 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_InvalidKind_Returns400"` | ✅ | ✅ green |
+| 05-01-05 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_TotalCountReflectsFilter"` | ✅ | ✅ green |
+| 05-01-06 | 01 | 1 | SESS-05 | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionHistoryTests.GetSessionHistory_MetaDeserialized"` | ✅ | ✅ green |
+| 05-02-01 | 02 | 1 | CLI-01 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~ApiClientTests.GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount"` | ✅ | ✅ green |
+| 05-02-02 | 02 | 1 | WEB-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~DashboardApiClientTests.GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount"` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -53,8 +54,9 @@ created: 2026-03-09
 
 ## Wave 0 Requirements
 
-- [ ] New test methods in `tests/AgentHub.Tests/SessionHistoryTests.cs` — update existing `GetSessionHistory_ReturnsEventsOrderedByTimestamp` to verify envelope shape, add new tests for pagination math, kind filtering, 400 on invalid kind, Meta deserialization, totalCount accuracy
-- [ ] Seed helper update — `SeedSessionWithEvents` needs variant that sets MetaJson on some events for Meta deserialization tests
+- [x] New test methods in `tests/AgentHub.Tests/SessionHistoryTests.cs` — envelope shape, pagination, kind filtering, 400 validation, Meta deserialization, totalCount accuracy
+- [x] Seed helper update — `SeedSessionWithEvents` sets MetaJson on some events for Meta deserialization tests
+- [x] CLI API client unit test — `ApiClientTests.GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount` added
 
 ---
 
@@ -69,11 +71,23 @@ created: 2026-03-09
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-03-09
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |
+
+Tests added: `ApiClientTests.GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount`, `ApiClientTests.GetSessionHistoryAsync_SendsCorrectUrlWithQueryParams`
