@@ -37,8 +37,8 @@ Requirements for milestone v1.1 Multi-Agent & Interactive. Each maps to roadmap 
 
 ### Schema & Infrastructure
 
-- [ ] **INFRA-01**: EF Core migration adds ParentSessionId, DispatchId, InventoryJson columns
-- [ ] **INFRA-02**: HostMetricCache provides real-time metrics to placement engine
+- [x] **INFRA-01**: EF Core migration adds ParentSessionId, DispatchId, InventoryJson columns
+- [x] **INFRA-02**: HostMetricCache provides real-time metrics to placement engine
 
 ## Future Requirements
 
@@ -75,8 +75,8 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 7 | Pending |
-| INFRA-02 | Phase 7 | Pending |
+| INFRA-01 | Phase 7 | Complete |
+| INFRA-02 | Phase 7 | Complete |
 | INVT-01 | Phase 7 | Pending |
 | INVT-02 | Phase 7 | Pending |
 | INVT-03 | Phase 7 | Pending |
