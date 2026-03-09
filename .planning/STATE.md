@@ -10,7 +10,7 @@ progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 5 of 6 (History API Contract Alignment)
-Plan: 2 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-09 -- Plan 05-02 executed (web client envelope alignment with expandable metadata rows)
+Plan: 2 of 2 in current phase (complete)
+Status: Complete
+Last activity: 2026-03-09 -- Plan 05-01 executed (history endpoint rewrite with typed DTOs, pagination, kind filtering, CLI envelope update)
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 94%
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 05 P01 | 8min | 2 tasks | 4 files |
 | Phase 05 P02 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
@@ -102,6 +103,8 @@ Recent decisions affecting current work:
 - [04-01]: Configurable ApiBaseUrl with fallback to Aspire service discovery URI
 - [04-02]: Added @using AgentHub.Web.Components.Shared to _Imports.razor for component resolution across Pages and Shared folders
 - [04-03]: Interactive Server rendermode on App.razor root for full Blazor Server interactivity
+- [05-01]: JsonStringEnumConverter on history endpoint for enum-as-string serialization (SessionEventKind)
+- [05-01]: Static HistoryJson.Options field for reusable JSON serializer config on history endpoint
 - [Phase 05]: Reuse existing SessionListResponse envelope pattern for SessionHistoryResponse
 - [Phase 05]: HashSet<SessionEvent> for expandable event tracking (reference equality)
 
@@ -117,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T12:18:15.393Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-03-09T12:21:42Z
+Stopped at: Completed 05-01-PLAN.md (Phase 5 complete)
 Resume file: None
