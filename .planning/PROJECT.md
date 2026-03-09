@@ -35,17 +35,30 @@ See what every agent is doing across every machine in real-time, and deploy new 
 
 ### Active
 
-- [ ] Interactive sessions with bidirectional steering mid-run
-- [ ] Multi-agent coordination across machines with shared context
-- [ ] Host inventory with agent tool discovery and health checks
-- [ ] Git worktree-based isolation per agent session
-- [ ] Blob-backed artifact and snapshot storage
-- [ ] Container-based execution environments
-- [ ] Nomad execution backend for scheduler-based placement
-- [ ] MCP protocol support as agent control protocol
-- [ ] Token spend tracking per session
-- [ ] Diff review workflow (view agent changes, approve/reject)
-- [ ] MAUI desktop/mobile client
+- [ ] Interactive sessions with bidirectional steering mid-run (pause, resume, redirect)
+- [ ] Multi-agent coordination across machines (dispatch, sub-agent spawning, resource-aware)
+- [ ] Host inventory with agent tool discovery, versions, and health checks
+- [ ] Git worktree-based isolation per agent session (`--worktree` flag support)
+
+## Current Milestone: v1.1 Multi-Agent & Interactive
+
+**Goal:** Enable interactive agent steering, multi-agent coordination across machines, host inventory discovery, and git worktree isolation for parallel sessions.
+
+**Target features:**
+- Interactive sessions: send follow-up instructions, pause/resume, change direction mid-run
+- Multi-agent coordination: dispatch tasks to different machines, spawn sub-agents when resources busy
+- Host inventory: discover installed agent CLIs, versions, disk space, tools
+- Git worktree isolation: `--worktree` support so co-hosted agents work on the same repo safely
+
+### Future
+
+- Blob-backed artifact and snapshot storage
+- Container-based execution environments
+- Nomad execution backend for scheduler-based placement
+- MCP protocol support as agent control protocol
+- Token spend tracking per session
+- Diff review workflow (view agent changes, approve/reject)
+- MAUI desktop/mobile client
 
 ### Out of Scope
 
@@ -89,4 +102,4 @@ The platform wraps existing agent CLIs (e.g., `claude`, `codex`) via SSH and orc
 | Extern alias for test project Program ambiguity | Multi-project test isolation | ✓ Good |
 
 ---
-*Last updated: 2026-03-09 after v1.0 milestone*
+*Last updated: 2026-03-09 after v1.1 milestone started*
