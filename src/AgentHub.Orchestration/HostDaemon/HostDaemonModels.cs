@@ -151,6 +151,9 @@ public sealed record HostStatusReport
     [JsonPropertyName("memoryUsedMb")]
     public long MemoryUsedMb { get; init; }
 
+    [JsonPropertyName("memoryTotalMb")]
+    public long MemoryTotalMb { get; init; }
+
     [JsonPropertyName("agentsAvailable")]
     public string[] AgentsAvailable { get; init; } = Array.Empty<string>();
 }

@@ -60,6 +60,16 @@ public sealed class AgentHubApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    // -- Input --
+
+    public async Task SendInputAsync(string sessionId, string text, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync(
+            $"/api/sessions/{Uri.EscapeDataString(sessionId)}/input",
+            new SendInputRequest(text), s_json, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
     // -- Hosts --
 
     public async Task<List<HostRecord>> GetHostsAsync(CancellationToken ct = default)

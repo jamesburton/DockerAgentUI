@@ -92,7 +92,10 @@ public static class EntityMappers
             Enabled: entity.Enabled,
             AllowSsh: entity.AllowSsh,
             Labels: labels,
-            Address: entity.Address);
+            Address: entity.Address,
+            CpuPercent: entity.CpuPercent,
+            MemUsedMb: entity.MemUsedMb,
+            MemTotalMb: entity.MemTotalMb);
     }
 
     public static HostEntity ToEntity(this HostRecord dto)

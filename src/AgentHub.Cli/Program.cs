@@ -171,6 +171,43 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     sessionCommand.Add(cmd);
 }
 
+// -- session input --
+{
+    var idArg = new Argument<string>("id") { Description = "Session ID to send input to" };
+    var textArg = new Argument<string?>("text") { Description = "Text to send (reads from stdin if omitted)", DefaultValueFactory = _ => null };
+
+    var cmd = new Command("input", "Send input to a running session");
+    cmd.Add(idArg);
+    cmd.Add(textArg);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var formatter = ResolveFormatter(pr);
+        var sessionId = pr.GetValue(idArg)!;
+        var text = pr.GetValue(textArg);
+
+        if (string.IsNullOrEmpty(text))
+        {
+            text = await Console.In.ReadToEndAsync(ct);
+        }
+
+        try
+        {
+            await client.SendInputAsync(sessionId, text!, ct);
+            formatter.WriteSuccess($"Input sent to session {sessionId}.");
+            return 0;
+        }
+        catch (HttpRequestException ex)
+        {
+            formatter.WriteError($"Failed to send input: {ex.Message}");
+            return 1;
+        }
+    });
+
+    sessionCommand.Add(cmd);
+}
+
 // -- session logs --
 {
     var idArg = new Argument<string>("sessionId") { Description = "Session ID to view logs for" };

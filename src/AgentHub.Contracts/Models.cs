@@ -83,7 +83,8 @@ public enum SessionEventKind
     Heartbeat,
     SessionCompleted,
     CleanupStarted,
-    CleanupCompleted
+    CleanupCompleted,
+    HostMetrics
 }
 
 public sealed record SessionEvent(

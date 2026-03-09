@@ -12,4 +12,8 @@ public class HostEntity
     public string? Address { get; set; }
     public DateTimeOffset LastSeenUtc { get; set; }
     public string Status { get; set; } = "unknown";
+    public double? CpuPercent { get; set; }
+    public long? MemUsedMb { get; set; }
+    public long? MemTotalMb { get; set; }
+    public DateTimeOffset? MetricsUpdatedUtc { get; set; }
 }
