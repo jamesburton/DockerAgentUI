@@ -164,16 +164,35 @@ public sealed class DashboardApiClientTests
         {
             new("s1", SessionEventKind.StdOut, DateTimeOffset.UtcNow, "hello")
         };
-        SetJsonResponse(handler, events);
+        SetJsonResponse(handler, new { items = events, totalCount = 1 });
 
-        var result = await client.GetSessionHistoryAsync("s1", page: 2, pageSize: 50, kind: "StdOut");
+        var (items, total) = await client.GetSessionHistoryAsync("s1", page: 2, pageSize: 50, kind: "StdOut");
 
         Assert.Contains("/api/sessions/s1/history", handler.LastRequest!.RequestUri!.AbsolutePath);
         var query = handler.LastRequest.RequestUri.Query;
         Assert.Contains("page=2", query);
         Assert.Contains("pageSize=50", query);
         Assert.Contains("kind=StdOut", query);
-        Assert.Single(result);
+        Assert.Single(items);
+        Assert.Equal(1, total);
+    }
+
+    [Fact]
+    public async Task GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount()
+    {
+        var (client, handler) = CreateClient();
+        var events = new List<SessionEvent>
+        {
+            new("s1", SessionEventKind.StdOut, DateTimeOffset.UtcNow, "line1"),
+            new("s1", SessionEventKind.StdOut, DateTimeOffset.UtcNow, "line2"),
+            new("s1", SessionEventKind.StdErr, DateTimeOffset.UtcNow, "err1")
+        };
+        SetJsonResponse(handler, new { items = events, totalCount = 10 });
+
+        var (items, total) = await client.GetSessionHistoryAsync("s1");
+
+        Assert.Equal(3, items.Count);
+        Assert.Equal(10, total);
     }
 
     [Fact]

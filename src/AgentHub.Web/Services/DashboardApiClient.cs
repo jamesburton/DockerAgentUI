@@ -50,7 +50,7 @@ public sealed class DashboardApiClient(HttpClient http)
         return await http.GetFromJsonAsync<List<HostRecord>>("/api/hosts", s_json, ct) ?? [];
     }
 
-    public async Task<List<SessionEvent>> GetSessionHistoryAsync(
+    public async Task<(List<SessionEvent> Items, int TotalCount)> GetSessionHistoryAsync(
         string sessionId, int? page = null, int? pageSize = null, string? kind = null,
         CancellationToken ct = default)
     {
@@ -61,7 +61,8 @@ public sealed class DashboardApiClient(HttpClient http)
 
         var url = $"/api/sessions/{Uri.EscapeDataString(sessionId)}/history";
         if (qs.Count > 0) url += $"?{string.Join('&', qs)}";
-        return await http.GetFromJsonAsync<List<SessionEvent>>(url, s_json, ct) ?? [];
+        var resp = await http.GetFromJsonAsync<SessionHistoryResponse>(url, s_json, ct);
+        return (resp?.Items ?? [], resp?.TotalCount ?? 0);
     }
 
     public async Task ResolveApprovalAsync(string approvalId, bool approved, CancellationToken ct = default)
@@ -73,5 +74,6 @@ public sealed class DashboardApiClient(HttpClient http)
     }
 
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);
+    internal sealed record SessionHistoryResponse(List<SessionEvent> Items, int TotalCount);
     internal sealed record StartSessionResponse(string SessionId);
 }

@@ -117,13 +117,14 @@ else
             {
                 // Load history with pagination for completed sessions
                 int page = 1;
-                List<SessionEvent> batch;
-                do
+                while (true)
                 {
-                    batch = await Api.GetSessionHistoryAsync(SessionId, page, 100, ct: _cts.Token);
+                    var (batch, totalCount) = await Api.GetSessionHistoryAsync(SessionId, page, 100, ct: _cts.Token);
                     _events.AddRange(batch);
+                    if (batch.Count < 100 || _events.Count >= totalCount)
+                        break;
                     page++;
-                } while (batch.Count == 100);
+                }
             }
         }
         catch (Exception ex)
