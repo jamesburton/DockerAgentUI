@@ -81,6 +81,14 @@ public sealed class DashboardApiClient(HttpClient http)
         response.EnsureSuccessStatusCode();
     }
 
+    // -- Host Inventory --
+
+    public async Task RefreshInventoryAsync(string hostId, CancellationToken ct = default)
+        => await http.PostAsync($"/api/hosts/{Uri.EscapeDataString(hostId)}/refresh-inventory", null, ct);
+
+    public async Task RefreshAllInventoryAsync(CancellationToken ct = default)
+        => await http.PostAsync("/api/hosts/refresh-inventory", null, ct);
+
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);
     internal sealed record SessionHistoryResponse(List<SessionEvent> Items, int TotalCount);
     internal sealed record StartSessionResponse(string SessionId);

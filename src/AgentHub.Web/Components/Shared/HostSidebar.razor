@@ -1,4 +1,5 @@
 @* Host sidebar with status cards, session counts, CPU/memory bars *@
+@inject DashboardApiClient Api
 
 <MudPaper Class="pa-2" Style="max-height: calc(100vh - 100px); overflow-y: auto;">
     <MudText Typo="Typo.subtitle1" Class="mb-2 px-2">Hosts</MudText>
@@ -90,6 +91,46 @@
                             <MudText Typo="Typo.caption" Color="Color.Tertiary" Style="flex: 1; text-align: center;">--</MudText>
                         </MudStack>
                     }
+
+                    <MudStack Row AlignItems="AlignItems.Center" Class="mt-1">
+                        <MudSpacer />
+                        <MudIconButton Icon="@(ExpandedHostId == host.HostId ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                       Size="Size.Small"
+                                       OnClick="() => ToggleExpand(host.HostId)" />
+                    </MudStack>
+
+                    <MudCollapse Expanded="@(ExpandedHostId == host.HostId)">
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.caption" Class="mb-1"><b>Installed Agents</b></MudText>
+                        @if (host.Inventory?.Agents is { Count: > 0 })
+                        {
+                            @foreach (var agent in host.Inventory.Agents)
+                            {
+                                <MudText Typo="Typo.caption">@agent.Name @(agent.Version ?? "?")</MudText>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Not probed</MudText>
+                        }
+
+                        <MudText Typo="Typo.caption" Class="mt-1">
+                            <b>Disk:</b> @(host.Inventory?.DiskFreeGb.HasValue == true ? $"{host.Inventory.DiskFreeGb:F1} GB free" : "--")
+                        </MudText>
+
+                        @if (host.Inventory?.GitVersion is not null)
+                        {
+                            <MudText Typo="Typo.caption">
+                                <b>Git:</b> @host.Inventory.GitVersion
+                            </MudText>
+                        }
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                       Size="Size.Small"
+                                       Disabled="@_refreshing"
+                                       OnClick="() => RefreshInventory(host.HostId)"
+                                       Class="mt-1" />
+                    </MudCollapse>
                 </MudCardContent>
             </MudCard>
         }
@@ -101,6 +142,22 @@
     [Parameter] public string? SelectedHostId { get; set; }
     [Parameter] public EventCallback<string?> SelectedHostIdChanged { get; set; }
     [Parameter] public List<SessionSummary>? Sessions { get; set; }
+
+    private string? ExpandedHostId { get; set; }
+    private bool _refreshing;
+
+    private void ToggleExpand(string hostId)
+    {
+        ExpandedHostId = ExpandedHostId == hostId ? null : hostId;
+    }
+
+    private async Task RefreshInventory(string hostId)
+    {
+        _refreshing = true;
+        StateHasChanged();
+        try { await Api.RefreshInventoryAsync(hostId); }
+        finally { _refreshing = false; StateHasChanged(); }
+    }
 
     private int TotalSessionCount => Sessions?.Count ?? 0;
 
