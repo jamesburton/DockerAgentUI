@@ -1,0 +1,134 @@
+@* Session data grid with sortable/filterable columns and row actions *@
+
+<MudDataGrid T="SessionSummary"
+             Items="@Sessions"
+             Dense="true"
+             Hover="true"
+             Striped="true"
+             RowClick="@OnRowClick"
+             RowStyle="cursor: pointer;"
+             SortMode="SortMode.Single"
+             Filterable="true"
+             FilterMode="DataGridFilterMode.ColumnFilterRow">
+    <Columns>
+        <PropertyColumn Property="x => x.State" Title="Status" Sortable="true" Filterable="true">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.Item.State)">
+                    @context.Item.State
+                </MudChip>
+            </CellTemplate>
+        </PropertyColumn>
+
+        <PropertyColumn Property="x => x.Backend" Title="Agent Type" Sortable="true" Filterable="true" />
+
+        <TemplateColumn Title="Prompt" Sortable="false" Filterable="false">
+            <CellTemplate>
+                @{
+                    var prompt = GetPromptPreview(context.Item);
+                }
+                <MudTooltip Text="@prompt" Delay="300">
+                    <MudText Typo="Typo.body2">@Truncate(prompt, 60)</MudText>
+                </MudTooltip>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.Node" Title="Host" Sortable="true" Filterable="true">
+            <CellTemplate>
+                <MudText Typo="Typo.body2">@(context.Item.Node ?? "—")</MudText>
+            </CellTemplate>
+        </PropertyColumn>
+
+        <TemplateColumn Title="Duration" Sortable="false">
+            <CellTemplate>
+                <MudText Typo="Typo.body2">@GetDuration(context.Item)</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.CreatedUtc" Title="Started" Sortable="true">
+            <CellTemplate>
+                <MudTooltip Text="@context.Item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss zzz")">
+                    <MudText Typo="Typo.body2">@FormatRelativeTime(context.Item.CreatedUtc)</MudText>
+                </MudTooltip>
+            </CellTemplate>
+        </PropertyColumn>
+
+        <TemplateColumn Title="Actions" Sortable="false" Filterable="false">
+            <CellTemplate>
+                @if (context.Item.State is SessionState.Running or SessionState.Pending)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Stop"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="Stop session"
+                                   OnClick="@(() => StopSession(context.Item.SessionId))" />
+                }
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">No sessions found.</MudText>
+    </NoRecordsContent>
+</MudDataGrid>
+
+@code {
+    [Parameter] public List<SessionSummary>? Sessions { get; set; }
+    [Parameter] public EventCallback<string> OnSessionSelected { get; set; }
+    [Parameter] public EventCallback<string> OnStopSession { get; set; }
+
+    private async Task OnRowClick(DataGridRowClickEventArgs<SessionSummary> args)
+    {
+        await OnSessionSelected.InvokeAsync(args.Item.SessionId);
+    }
+
+    private async Task StopSession(string sessionId)
+    {
+        await OnStopSession.InvokeAsync(sessionId);
+    }
+
+    private static Color GetStateColor(SessionState state) => state switch
+    {
+        SessionState.Running => Color.Success,
+        SessionState.Pending => Color.Warning,
+        SessionState.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string GetPromptPreview(SessionSummary session)
+    {
+        // SessionSummary doesn't have Prompt directly; show Requirements info or "-"
+        return session.Requirements.WorktreeId ?? "—";
+    }
+
+    private static string Truncate(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
+        return text[..maxLength] + "...";
+    }
+
+    private static string GetDuration(SessionSummary session)
+    {
+        if (session.State is SessionState.Running or SessionState.Pending)
+        {
+            var elapsed = DateTimeOffset.UtcNow - session.CreatedUtc;
+            return FormatTimeSpan(elapsed);
+        }
+        return "—";
+    }
+
+    private static string FormatRelativeTime(DateTimeOffset time)
+    {
+        var elapsed = DateTimeOffset.UtcNow - time;
+        if (elapsed.TotalMinutes < 1) return "just now";
+        if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes}m ago";
+        if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours}h ago";
+        return $"{(int)elapsed.TotalDays}d ago";
+    }
+
+    private static string FormatTimeSpan(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}h {ts.Minutes}m";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}m {ts.Seconds}s";
+        return $"{ts.Seconds}s";
+    }
+}

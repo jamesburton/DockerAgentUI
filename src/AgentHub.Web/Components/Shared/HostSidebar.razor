@@ -1,0 +1,108 @@
+@* Host sidebar with status cards, session counts, CPU/memory bars *@
+
+<MudPaper Class="pa-2" Style="max-height: calc(100vh - 100px); overflow-y: auto;">
+    <MudText Typo="Typo.subtitle1" Class="mb-2 px-2">Hosts</MudText>
+
+    @* All Hosts card *@
+    <MudCard Class="mb-2 cursor-pointer"
+             Outlined="@(SelectedHostId is null)"
+             Elevation="@(SelectedHostId is null ? 0 : 1)"
+             @onclick="() => SelectHost(null)">
+        <MudCardContent Class="pa-2">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.DashboardCustomize" Size="Size.Small" />
+                <MudText Typo="Typo.body2"><b>All Hosts</b></MudText>
+                <MudSpacer />
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">@TotalSessionCount</MudChip>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+
+    @if (Hosts is not null)
+    {
+        @foreach (var host in Hosts)
+        {
+            var isSelected = SelectedHostId == host.HostId;
+            var sessionCount = GetSessionCount(host.HostId);
+
+            <MudCard Class="mb-2 cursor-pointer"
+                     Outlined="@isSelected"
+                     Elevation="@(isSelected ? 0 : 1)"
+                     @onclick="() => SelectHost(host.HostId)">
+                <MudCardContent Class="pa-2">
+                    <MudStack Row AlignItems="AlignItems.Center" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                 Size="Size.Small"
+                                 Color="@(host.Enabled ? Color.Success : Color.Error)" />
+                        <MudText Typo="Typo.body2"><b>@host.DisplayName</b></MudText>
+                        <MudSpacer />
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(sessionCount > 0 ? Color.Primary : Color.Default)">
+                            @sessionCount
+                        </MudChip>
+                    </MudStack>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
+                        @host.Os &middot; @host.Backend
+                    </MudText>
+
+                    @if (host.CpuPercent.HasValue)
+                    {
+                        <MudStack Row AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                            <MudText Typo="Typo.caption" Style="width: 32px;">CPU</MudText>
+                            <MudProgressLinear Value="@host.CpuPercent.Value"
+                                               Color="@GetUtilizationColor(host.CpuPercent.Value)"
+                                               Size="Size.Small"
+                                               Rounded="true"
+                                               Style="flex: 1;" />
+                            <MudText Typo="Typo.caption" Style="width: 36px; text-align: right;">
+                                @($"{host.CpuPercent.Value:F0}%")
+                            </MudText>
+                        </MudStack>
+                    }
+
+                    @if (host.MemUsedMb.HasValue && host.MemTotalMb.HasValue && host.MemTotalMb.Value > 0)
+                    {
+                        var memPercent = (double)host.MemUsedMb.Value / host.MemTotalMb.Value * 100;
+                        <MudStack Row AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.caption" Style="width: 32px;">MEM</MudText>
+                            <MudProgressLinear Value="@memPercent"
+                                               Color="@GetUtilizationColor(memPercent)"
+                                               Size="Size.Small"
+                                               Rounded="true"
+                                               Style="flex: 1;" />
+                            <MudText Typo="Typo.caption" Style="width: 36px; text-align: right;">
+                                @($"{memPercent:F0}%")
+                            </MudText>
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<HostRecord>? Hosts { get; set; }
+    [Parameter] public string? SelectedHostId { get; set; }
+    [Parameter] public EventCallback<string?> SelectedHostIdChanged { get; set; }
+    [Parameter] public List<SessionSummary>? Sessions { get; set; }
+
+    private int TotalSessionCount => Sessions?.Count ?? 0;
+
+    private int GetSessionCount(string hostId) =>
+        Sessions?.Count(s => string.Equals(s.Node, hostId, StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+    private async Task SelectHost(string? hostId)
+    {
+        SelectedHostId = hostId;
+        await SelectedHostIdChanged.InvokeAsync(hostId);
+    }
+
+    private static Color GetUtilizationColor(double percent) => percent switch
+    {
+        > 85 => Color.Error,
+        > 60 => Color.Warning,
+        _ => Color.Success
+    };
+}
