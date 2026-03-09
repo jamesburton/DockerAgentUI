@@ -104,23 +104,53 @@
                 {
                     await foreach (var evt in reader.ReadAllAsync(_sseCts.Token))
                     {
-                        await InvokeAsync(() =>
+                        await InvokeAsync(async () =>
                         {
                             if (evt.Kind == SessionEventKind.StateChanged)
                             {
-                                var existing = _sessions.FindIndex(s => s.SessionId == evt.SessionId);
-                                if (existing >= 0)
+                                var idx = _sessions.FindIndex(s => s.SessionId == evt.SessionId);
+                                if (idx >= 0)
                                 {
-                                    // Reload data to get updated state
-                                    _ = LoadDataAndRefresh();
+                                    // In-place patch: parse new state from event meta
+                                    if (evt.Meta?.TryGetValue("newState", out var stateStr) == true
+                                        && Enum.TryParse<SessionState>(stateStr, out var newState))
+                                    {
+                                        _sessions[idx] = _sessions[idx] with { State = newState };
+                                    }
+                                    else
+                                    {
+                                        // Fallback: fetch this session only
+                                        var updated = await Api.GetSessionAsync(evt.SessionId);
+                                        if (updated is not null) _sessions[idx] = updated;
+                                    }
                                 }
                                 else
                                 {
-                                    // New session, reload to include it
-                                    _ = LoadDataAndRefresh();
+                                    // Unknown session -- single API call to fetch and add
+                                    var newSession = await Api.GetSessionAsync(evt.SessionId);
+                                    if (newSession is not null) _sessions.Add(newSession);
+                                }
+                                StateHasChanged();
+                            }
+                            else if (evt.Kind == SessionEventKind.HostMetrics)
+                            {
+                                // Deliver host metrics to sidebar
+                                if (evt.Meta is not null)
+                                {
+                                    OnHostMetricsReceived(evt.Meta);
                                 }
                             }
-                            StateHasChanged();
+                            else if (evt.Kind == SessionEventKind.SessionCompleted)
+                            {
+                                // Update completed session status in-place
+                                var idx = _sessions.FindIndex(s => s.SessionId == evt.SessionId);
+                                if (idx >= 0)
+                                {
+                                    var updated = await Api.GetSessionAsync(evt.SessionId);
+                                    if (updated is not null) _sessions[idx] = updated;
+                                    StateHasChanged();
+                                }
+                            }
                         });
                     }
                 }
@@ -135,10 +165,18 @@
         }
     }
 
-    private async Task LoadDataAndRefresh()
+    private void OnHostMetricsReceived(Dictionary<string, string> meta)
     {
-        await LoadDataAsync();
-        await InvokeAsync(StateHasChanged);
+        if (!meta.TryGetValue("hostId", out var hostId)) return;
+        var idx = _hosts.FindIndex(h => h.HostId == hostId);
+        if (idx < 0) return;
+
+        double? cpu = meta.TryGetValue("cpu", out var cpuStr) && double.TryParse(cpuStr, out var cpuVal) ? cpuVal : null;
+        long? memUsed = meta.TryGetValue("memUsedMb", out var muStr) && long.TryParse(muStr, out var muVal) ? muVal : null;
+        long? memTotal = meta.TryGetValue("memTotalMb", out var mtStr) && long.TryParse(mtStr, out var mtVal) ? mtVal : null;
+
+        _hosts[idx] = _hosts[idx] with { CpuPercent = cpu, MemUsedMb = memUsed, MemTotalMb = memTotal };
+        StateHasChanged();
     }
 
     private Task OnHostSelected(string? hostId)

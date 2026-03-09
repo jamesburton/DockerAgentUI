@@ -60,6 +60,13 @@
                             </MudText>
                         </MudStack>
                     }
+                    else
+                    {
+                        <MudStack Row AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                            <MudText Typo="Typo.caption" Style="width: 32px;">CPU</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary" Style="flex: 1; text-align: center;">--</MudText>
+                        </MudStack>
+                    }
 
                     @if (host.MemUsedMb.HasValue && host.MemTotalMb.HasValue && host.MemTotalMb.Value > 0)
                     {
@@ -74,6 +81,13 @@
                             <MudText Typo="Typo.caption" Style="width: 36px; text-align: right;">
                                 @($"{memPercent:F0}%")
                             </MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudStack Row AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.caption" Style="width: 32px;">MEM</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary" Style="flex: 1; text-align: center;">--</MudText>
                         </MudStack>
                     }
                 </MudCardContent>
