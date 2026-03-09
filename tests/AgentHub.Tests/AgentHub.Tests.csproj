@@ -23,5 +23,8 @@
     <ProjectReference Include="..\..\src\AgentHub.Orchestration\AgentHub.Orchestration.csproj" />
     <ProjectReference Include="..\..\src\AgentHub.Service\AgentHub.Service.csproj" />
     <ProjectReference Include="..\..\src\AgentHub.Cli\AgentHub.Cli.csproj" />
+    <ProjectReference Include="..\..\src\AgentHub.Web\AgentHub.Web.csproj">
+      <Aliases>WebApp</Aliases>
+    </ProjectReference>
   </ItemGroup>
 </Project>
