@@ -1,0 +1,50 @@
+.terminal-panel {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.terminal-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #333;
+    font-size: 0.85rem;
+    color: #ccc;
+}
+
+.terminal-content {
+    padding: 12px;
+    max-height: 600px;
+    overflow-y: auto;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.terminal-content pre {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: #d4d4d4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.terminal-stdout {
+    color: #d4d4d4;
+}
+
+.terminal-stderr {
+    color: #f44747;
+}
+
+.terminal-state {
+    color: #dcdcaa;
+}
+
+.terminal-info {
+    color: #569cd6;
+}

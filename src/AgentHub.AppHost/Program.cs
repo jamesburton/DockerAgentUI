@@ -1,9 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Minimal Aspire starter.
-// Real next step:
-// - register AgentHub.Service as a project resource
-// - add Redis/NATS when durable eventing is introduced
-// - add blob emulator / Azurite if you want local shared storage testing
+var service = builder.AddProject<Projects.AgentHub_Service>("agenthub-service");
+
+builder.AddProject<Projects.AgentHub_Web>("agenthub-web")
+    .WithReference(service)
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();
