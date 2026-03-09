@@ -1,208 +1,176 @@
 # Project Research Summary
 
-**Project:** AgentSafeEnv - Multi-Agent Orchestration Platform
-**Domain:** Multi-agent coding orchestration control plane (fleet management for AI coding agents across machines)
-**Researched:** 2026-03-08
+**Project:** AgentSafeEnv v1.1 -- Multi-Agent & Interactive
+**Domain:** Multi-agent orchestration platform (extending shipped v1.0 with interactive steering, coordination, inventory, worktree isolation)
+**Researched:** 2026-03-09
 **Confidence:** HIGH
 
 ## Executive Summary
 
-AgentSafeEnv is a self-hosted, multi-machine orchestration platform for AI coding agents (Claude Code, Codex, Copilot, Gemini, OpenCode). This is a control plane, not an AI agent itself -- it launches, monitors, and manages CLI-based coding agents across 5-10 remote machines via a hub-and-spoke architecture. The competitive gap it fills is clear: local tools like Claude Squad and Conductor are single-machine only, while cloud platforms like Warp Oz and Devin are SaaS. Nobody offers a self-hosted fleet orchestrator for multiple agent types with pluggable execution backends.
+AgentSafeEnv v1.1 extends a stable, shipped v1.0 platform (12,000 LOC, 178 files, .NET 10) with four feature areas: interactive session steering (pause/resume/redirect), multi-agent coordination (sub-agent spawning, resource-aware scheduling), host inventory discovery, and git worktree isolation for parallel agents. The strongest finding across all research is that **zero new dependencies are required** -- every v1.1 feature is achievable with the existing stack (SSH.NET, EF Core SQLite, System.Threading.Channels, SSE) plus Claude Code CLI flags verified against official documentation. This zero-dependency position eliminates version conflict risk and keeps the learning curve flat.
 
-The recommended approach is a .NET 10 + Aspire stack with ASP.NET Core as the coordinator API, native SSE for real-time event streaming, EF Core with SQLite for persistence, and SSH as the first execution backend. The architecture follows a supervisor pattern: a central coordinator receives all requests, applies policy and sanitization checks, dispatches work to backends (SSH, then Nomad), and streams events back to clients (CLI first, Blazor dashboard second). Agent CLI differences are handled by an adapter-per-agent-type pattern, starting with Claude Code only in v1.
+The recommended approach is a dependency-driven build order: host inventory first (everything else depends on knowing what is installed where), then interactive steering and worktree isolation in parallel (independent of each other), then multi-agent coordination last (depends on all three predecessors). Architecture research confirms that the v1.0 abstractions -- `ISessionBackend`, `IPlacementEngine`, `DurableEventService`, `HostCommandProtocol` -- accommodate all four features through extension rather than replacement. The only component requiring a full rewrite is `GitWorktreeProvider`, which is currently a stub.
 
-The top risks are: (1) agent CLI instability -- these tools change output formats frequently, requiring version-aware adapters from day one; (2) remote process lifecycle management -- SSH sessions must not tie process lifetime to connection lifetime, requiring a host-side daemon; (3) SSE event gaps causing silent data loss on reconnection -- events need IDs and replay from the start; (4) the coordinator's in-memory session state being lost on restart -- persistent storage must replace ConcurrentDictionary before any real deployment. These are all solvable with the right Phase 1 foundations.
+The critical risks are: (1) state machine explosion when adding pause/resume semantics -- the coordinator and host daemon can diverge under network partitions, producing phantom "Paused" states; (2) unbounded sub-agent spawning cascading into runaway resource consumption (Anthropic's own multi-agent system documented 50-subagent cascades for simple queries); and (3) git worktree shared `.git` directory corruption when multiple agents operate concurrently on the same repository. All three are preventable with specific design constraints: formal state transition diagrams with daemon-authoritative state, hard depth/count limits on spawning, and per-repo mutex serialization for worktree operations.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is entirely .NET 10 ecosystem, which is the right call for a C#-first team wanting full-stack unity from CLI to web dashboard to eventual desktop app. All core technologies are LTS or GA with high confidence in version stability.
+No new NuGet packages. The v1.1 feature set maps entirely to existing primitives and Claude Code CLI flags. See [STACK.md](STACK.md) for the full integration matrix.
 
-**Core technologies:**
-- **.NET 10 / ASP.NET Core 10:** Runtime and API host -- LTS until Nov 2028, native SSE support via `Results.ServerSentEvents`
-- **Aspire 13.x:** Dev orchestration -- service discovery, OpenTelemetry dashboard, integration testing out of the box
-- **EF Core 10 + SQLite:** Data persistence -- zero-config for MVP, swappable to Postgres/SQL Server via provider abstraction
-- **System.CommandLine 2.0 + Spectre.Console:** CLI interface -- finally stable (Nov 2025), paired with rich terminal rendering
-- **CliWrap 3.10:** Process management -- async stream capture of agent CLI stdout/stderr
-- **SSH.NET 2025.1.0:** Remote execution -- mature SSH-2 library for the SSH backend
-- **ModelContextProtocol 1.1.0:** MCP support -- official Microsoft/Anthropic C# SDK for future protocol bridge
-- **Blazor Interactive Server:** Web dashboard -- server-rendered for real-time updates, reusable in MAUI Hybrid later
-- **Nomad REST API via HttpClient:** No .NET SDK exists; thin wrapper is the correct approach
+**Core technologies (unchanged):**
+- **.NET 10 / ASP.NET Core / EF Core SQLite** -- runtime, API, persistence. LTS, proven in v1.0
+- **SSH.NET 2025.1.0** -- bidirectional remote execution. stdin pipe handles steering commands; stdout/stderr for events
+- **System.Threading.Channels (BCL)** -- in-process async queues for event routing, already used in DurableEventService
+- **SSE (built-in)** -- server-to-client streaming. No SignalR needed; SSE + SSH stdin already provides bidirectional communication
 
-**Key "do not use" decisions:** Semantic Kernel (wrong abstraction -- this manages CLI tools, not LLM agents), SignalR initially (SSE sufficient for monitoring), Newtonsoft.Json (legacy), Docker SDK (out of scope per PROJECT.md).
+**New internal abstractions (no packages):**
+- `ICoordinationService` -- multi-agent dispatch and sub-agent spawning
+- `HostInventoryService` -- periodic SSH-based agent CLI discovery
+- `HostMetricCache` -- in-memory ConcurrentDictionary bridging metric polling to placement engine
+- `ResourceAwarePlacementEngine` -- weighted scoring replacement for `SimplePlacementEngine.FirstOrDefault()`
+
+**Explicitly rejected:** SignalR, RabbitMQ/Redis, gRPC, Hangfire, MediatR, Polly, Semantic Kernel, CliWrap, MCP SDK. Each has a documented rationale in STACK.md.
 
 ### Expected Features
 
-**Must have (table stakes -- v1):**
-- Host registration with agent tool discovery
-- Host agent daemon for remote process management
-- Session launch via SSH to registered hosts
-- Agent CLI adapters (Claude Code + one other)
-- Git worktree isolation per session
-- Real-time output streaming via SSE
-- Session lifecycle management (start/stop/status/force-kill)
-- Session history with stored output
-- CLI client as primary interface
-- Coordinator REST API
+See [FEATURES.md](FEATURES.md) for full prioritization matrix and dependency graph.
 
-**Should have (differentiators -- v1.x):**
-- Multi-machine fleet management (core differentiator vs. competitors)
-- Pluggable execution backends (SSH first, Nomad second)
-- Diff review workflow
-- Policy/skill configuration (YAML-based)
-- Approval/elevation flow (human-in-the-loop)
-- Resource usage visibility
-- Web dashboard (Blazor)
-- Input sanitization layer
+**Must have (table stakes):**
+- Session pause/resume via SIGTSTP/SIGCONT over SSH
+- Git worktree creation and cleanup per session
+- Host tool inventory -- know what agent CLIs are installed before dispatching
+- Agent CLI version detection -- prevent incompatible flag dispatch
+- Resource-aware placement -- stop stacking agents on one host while others sit idle
+- Follow-up instruction UX -- polish existing `SendInputAsync` for mid-session steering
 
-**Defer (v2+):**
-- Interactive bidirectional sessions
-- Nomad and container execution backends
-- Cross-machine task coordination
-- MAUI desktop/mobile client
-- Token spend tracking
-- MCP protocol support for agent control
+**Should have (differentiators):**
+- Sub-agent spawning with parent-child tracking (no self-hosted tool does cross-machine spawning)
+- Coordinated multi-session batch launch
+- Resource-aware auto-scheduling with weighted scoring
+- Host capability fingerprinting (agent CLIs, git version, disk space, available tools)
+- Automatic worktree branch naming (`agent/{sessionId}/{prompt-prefix}`)
 
-**Anti-features to actively avoid:** Full container sandboxing from day one, agent-to-agent direct communication, auto-merge of agent PRs, natural language task decomposition, multi-tenant auth.
+**Defer to v1.2+:**
+- Session dependency DAG execution (fan-out/fan-in)
+- Prompt redirect with idle detection (fragile pattern matching)
+- Dedicated health-check probes (host metrics polling suffices at current scale)
+- Worktree merge-readiness check (easy add-on after worktree lifecycle is proven)
 
 ### Architecture Approach
 
-Hub-and-spoke supervisor pattern with a central stateless coordinator, pluggable execution backends behind `ISessionBackend`, and an event-sourcing-lite model where SSE streams are the primary output channel. Three-tier state separation keeps system config, task state, and ephemeral session context cleanly isolated.
+The v1.0 architecture accommodates v1.1 through extension, not restructuring. The coordinator remains stateless with respect to repository data. The `HostCommandProtocol` gains 4 new commands. The `DurableEventService` and `SseSubscriptionManager` require no changes. See [ARCHITECTURE.md](ARCHITECTURE.md) for integration points and data flows.
 
 **Major components:**
-1. **Coordinator API** -- ASP.NET Core minimal APIs; routes requests, applies policy, dispatches to backends
-2. **Session Coordinator** -- Orchestrates placement, policy check, sanitization, and backend routing (stateless, DB-backed)
-3. **Execution Backends** -- `ISessionBackend` implementations: InMemory (dev), SSH (v1), Nomad (v2+)
-4. **Agent Adapters** -- `IAgentAdapter` per agent type; translates between generic session model and specific CLI invocation
-5. **Event Bus** -- In-process `Channel<T>` for fan-out to SSE subscribers; Redis/NATS later for durability
-6. **Data Layer** -- EF Core with SQLite for session state, host records, audit trail
-7. **Config Layer** -- JSON-based skills, policies, host registry; DB-backed later
-8. **Aspire AppHost** -- Local dev orchestration, service discovery, telemetry
-
-**Project structure:** 9 projects -- AppHost, Contracts, Orchestration (no web dependency), Data (EF Core), Service (thin API host), CLI, Web (Blazor), ServiceDefaults, and future MAUI.
+1. **SessionCoordinator** (modified) -- gains control signal routing (pause/resume/redirect) in `SendInputAsync`
+2. **CoordinationService** (new) -- orchestrates multi-session dispatch and sub-agent spawning via existing `SessionCoordinator`
+3. **ResourceAwarePlacementEngine** (replaces SimplePlacementEngine) -- weighted scoring of CPU/memory/session-count with pending-session counter
+4. **HostInventoryService** (new) -- background SSH discovery of agent CLIs, versions, disk space, git version
+5. **GitWorktreeProvider** (rewritten) -- stub replaced with real SSH-based `git worktree add/remove` operations
+6. **HostMetricCache** (new) -- ConcurrentDictionary singleton bridging polling service to placement engine
 
 ### Critical Pitfalls
 
-1. **Agent CLI instability** -- CLIs change output formats without warning. Build version-aware adapters per agent type; use `--json` flags exclusively; never parse human-readable stdout.
-2. **Remote process lifecycle loss** -- SSH disconnection kills agent processes; coordinator restart loses session tracking. Launch agents in tmux/nohup; deploy a host-side daemon; persist session state to DB, not ConcurrentDictionary.
-3. **SSE event gaps** -- Client disconnects lose events silently. Assign monotonic IDs to all events; buffer recent events; support `Last-Event-ID` replay on reconnect.
-4. **Git worktree contention** -- Concurrent agents on same repo hit branch locks and disk exhaustion. Use unique branch names per worktree; implement cleanup lifecycle; enforce per-host limits.
-5. **Blacklist sanitization creates false security** -- Regex blocklists are trivially bypassable. Treat sanitization as advisory only; real security boundary is execution environment isolation (containers, restricted users).
-6. **Coordinator as single point of failure** -- In-memory state means restart = total state loss. Make coordinator stateless from day one with DB-backed session state.
-7. **Agent behavior differences hidden behind uniform interface** -- Each agent CLI has fundamentally different interaction models. Build and ship one agent at a time; document per-agent capability matrices.
+See [PITFALLS.md](PITFALLS.md) for all 7 pitfalls with recovery strategies.
+
+1. **State machine explosion (interactive steering)** -- Adding pause/resume creates implicit substates that interact with the existing lifecycle. Draw the complete state transition diagram before writing code. Separate control plane from data plane. Host daemon owns authoritative state; coordinator DB is a cache.
+2. **Unbounded sub-agent spawning** -- Without depth limits and fleet-wide session caps, a single dispatch can cascade into 50+ agents. Enforce hard limits: max depth (2), max children per parent (10), max fleet-wide sessions (20). Implement token/cost budget inheritance.
+3. **Git shared .git directory corruption** -- Concurrent worktree operations contend on `.git/index.lock`. Serialize all `git worktree add/remove` per-repo with a mutex in the host daemon. Disable `gc.auto`. Use `--no-optional-locks` for read operations.
+4. **Coordinator-daemon state divergence** -- SSH command delivery is at-most-once. Implement command acknowledgment with unique IDs. Daemon state wins on conflict. Add periodic state reconciliation.
+5. **Thundering herd placement** -- Stale 30-second metrics cause burst dispatches to pick the same "best" host. Add pending-session counter that increments at placement time, jitter among equal hosts, and admission control per host.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on combined research, the dependency graph dictates a 5-phase structure. Host inventory is the foundation; multi-agent coordination is the capstone.
 
-### Phase 1: Foundation and Data Layer
-**Rationale:** Architecture research shows clear dependency: Contracts and Data must exist before any orchestration logic can be durable. The scaffold has in-memory state that must be replaced before any real execution. This is the foundation everything else builds on.
-**Delivers:** Project structure, shared contracts, EF Core DbContext with entities and migrations, Aspire AppHost wiring, ServiceDefaults with telemetry/health.
-**Addresses:** Host registration data model, session persistence, audit trail foundation.
-**Avoids:** Pitfall 2 (process lifecycle loss from in-memory state), Pitfall 6 (coordinator SPOF).
+### Phase 1: Schema and Shared Infrastructure
+**Rationale:** Every feature needs schema changes and the HostMetricCache. Doing this first avoids migration conflicts and provides the data layer all subsequent phases depend on.
+**Delivers:** EF Core migration (ParentSessionId, DispatchId, InventoryJson, Paused state), HostMetricCache singleton, contract DTOs (SessionControlSignal, DispatchRequest, HostInventory, AgentCliInfo).
+**Addresses:** Foundation for all table-stakes features.
+**Avoids:** Migration conflicts from parallel development; stale NodeCapability fields (CpuTotal/MemTotalMb hardcoded to 0).
 
-### Phase 2: Core Orchestration and Event Streaming
-**Rationale:** With persistent storage in place, the coordinator can manage sessions durably. Event streaming with IDs and replay must be built correctly from the start per Pitfall 3.
-**Delivers:** Session Coordinator with DB-backed state, event bus with ID assignment and `Last-Event-ID` replay, SSE endpoints using .NET 10 native `TypedResults.ServerSentEvents`, placement engine (simple filter-based), policy and sanitization pipeline (advisory).
-**Addresses:** Session lifecycle management, real-time output streaming, host inventory.
-**Avoids:** Pitfall 3 (SSE event gaps), Pitfall 5 (false security from sanitizer -- label it advisory).
+### Phase 2: Host Inventory Discovery
+**Rationale:** Almost every v1.1 feature depends on knowing what is installed where. Worktrees need git version verification. Placement needs tool availability. Sub-agent spawning needs target host validation.
+**Delivers:** HostInventoryService (background polling), HostCommandProtocol `discover-inventory` command, API endpoints for inventory query and on-demand refresh, disk space in fast health poll.
+**Addresses:** Host tool inventory, agent CLI version detection, host capability fingerprinting.
+**Avoids:** Pitfall 4 (stale inventory causing placement failures) -- separate slow discovery (5-10 min) from fast health (30s), include disk space in fast poll.
 
-### Phase 3: SSH Backend and First Agent Adapter
-**Rationale:** This is where the platform starts actually doing things. SSH is the simplest real backend and the target hosts already exist. Claude Code is the best-documented agent with JSON output support. One real backend + one real agent proves the entire pipeline end-to-end.
-**Delivers:** SSH execution backend, host-side process management (tmux/nohup), Claude Code agent adapter with version detection, git worktree creation per session.
-**Addresses:** Session launch on remote hosts, agent CLI execution, worktree isolation.
-**Avoids:** Pitfall 1 (CLI API instability -- version-aware adapter), Pitfall 2 (process lifecycle -- tmux/daemon), Pitfall 7 (agent differences -- start with one agent only).
+### Phase 3: Interactive Session Steering
+**Rationale:** Independent of coordination features. Simpler to test on single sessions before orchestrating multiples. Must establish the state machine pattern that coordination will inherit.
+**Delivers:** Pause/resume via SSH signals, SessionControlSignal routing in SessionCoordinator, HostCommandProtocol pause/resume commands, command acknowledgment protocol.
+**Addresses:** Session pause/resume, follow-up instruction UX, prompt redirect foundation.
+**Avoids:** Pitfall 1 (state machine explosion) -- formal transition diagram required; Pitfall 5 (coordinator-daemon divergence) -- ack protocol implemented here.
 
-### Phase 4: CLI Client
-**Rationale:** The CLI is the primary interface for the target user (power users, developers). It can be built as soon as Session CRUD + SSE endpoints work. Building the CLI forces validation of the API surface.
-**Delivers:** Full CLI client with session management (create, list, stop, logs), live event streaming display, host management commands.
-**Uses:** System.CommandLine 2.0 for parsing, Spectre.Console for rich output.
-**Addresses:** CLI as primary interface, session history viewing.
+### Phase 4: Git Worktree Isolation
+**Rationale:** Must be working before multi-agent dispatch to prevent merge conflict chaos. Depends on Phase 2 inventory for git version verification.
+**Delivers:** GitWorktreeProvider rewrite (real SSH-based git worktree operations), SshBackend integration for session start/stop, worktree cleanup lifecycle, automatic branch naming.
+**Addresses:** Git worktree creation/cleanup per session, worktree branch naming.
+**Avoids:** Pitfall 3 (shared .git corruption) -- per-repo mutex, gc.auto=0; Pitfall 6 (merge conflict avalanche) -- file ownership hints in data model, conflict pre-check.
 
-### Phase 5: Second Agent, Diff Review, and Policies
-**Rationale:** With one agent working end-to-end, add a second agent to validate the adapter abstraction. Diff review and policy configuration make the tool production-quality for daily use.
-**Delivers:** Second agent adapter (Codex or OpenCode), diff review workflow, YAML-based policy/skill configuration, approval/elevation flow for gated actions.
-**Addresses:** Multi-agent-type support, diff review, config-driven policies, human-in-the-loop.
-**Avoids:** Pitfall 7 (agent differences -- second agent validates the abstraction holds).
-
-### Phase 6: Web Dashboard
-**Rationale:** With a stable API and CLI proving the model works, the Blazor dashboard provides visual fleet overview. Same API, second UI surface.
-**Delivers:** Blazor Interactive Server dashboard with session list, host status, live event streaming display, diff viewer.
-**Uses:** Blazor Interactive Server, SSE for real-time updates.
-**Addresses:** Web dashboard, fleet status visibility, resource usage display.
-
-### Phase 7: Advanced Backends and Hardening
-**Rationale:** With core orchestration proven, add Nomad for better scheduling/isolation, resource monitoring, notification system, and additional agent adapters.
-**Delivers:** Nomad execution backend, resource usage monitoring, notification system, additional agent adapters.
-**Addresses:** Pluggable execution backends, resource visibility, notifications.
+### Phase 5: Multi-Agent Coordination
+**Rationale:** Most complex feature. Depends on inventory (host validation), steering (state machine), worktrees (isolation), and placement (resource awareness). Building last means all prerequisites are proven.
+**Delivers:** CoordinationService, ResourceAwarePlacementEngine, sub-agent spawning API, batch dispatch endpoint, parent-child session tracking, event fan-out to parent streams.
+**Addresses:** Sub-agent spawning, coordinated multi-session launch, resource-aware auto-scheduling, session parent-child tracking.
+**Avoids:** Pitfall 2 (unbounded spawning) -- depth/count limits from day one; Pitfall 7 (thundering herd) -- pending-session counter and admission control.
 
 ### Phase Ordering Rationale
 
-- **Data before orchestration:** The architecture research explicitly warns that in-memory session state is the most critical gap in the existing scaffold. Fixing this first prevents every subsequent phase from building on a broken foundation.
-- **Event model before backends:** SSE event IDs and replay must be in the data model before any real events flow through the system. Retrofitting IDs is painful.
-- **SSH before Nomad:** SSH is simpler, target hosts already exist, and it validates the backend abstraction without requiring cluster infrastructure.
-- **One agent before many:** Every pitfall and architecture document emphasizes building and testing one agent adapter completely before adding others. Claude Code first (best docs, JSON output).
-- **CLI before web dashboard:** CLI is the primary interface and forces clean API design. Dashboard is the same API with a visual layer on top.
-- **Policies and approval after basic orchestration works:** Policy enforcement is meaningless without working session execution to gate.
+- **Inventory before everything** because placement, worktrees, and coordination all need to know what is installed on each host. Building it first means every subsequent phase has accurate host data.
+- **Steering before coordination** because pause/resume semantics must work reliably on single sessions before orchestrating parent-child relationships. The command ack protocol designed here is reused by coordination.
+- **Worktrees before coordination** because dispatching parallel agents to the same repo without worktree isolation will produce merge conflicts immediately. Having isolation ready means the first multi-agent dispatch works safely.
+- **Coordination last** because it is a thin orchestration layer over `SessionCoordinator` -- it reuses the full session lifecycle for each child session. With all prerequisites solid, coordination is primarily composition, not invention.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 3 (SSH Backend + Agent Adapter):** Complex integration -- SSH process lifecycle management, tmux session handling, Claude Code CLI flags and output parsing all need specific API research.
-- **Phase 5 (Second Agent + Policies):** The second agent adapter will surface abstraction gaps. Codex CLI has a different execution model (sandbox-first). Policy YAML schema design needs research.
-- **Phase 7 (Nomad Backend):** Nomad REST API integration, job spec templates, log streaming from allocations -- all need dedicated research.
+- **Phase 3 (Interactive Steering):** The SIGTSTP/SIGCONT signal approach needs validation -- not all agent CLIs respond to process suspension. Fallback semantics (buffer input vs. actually freeze the process) need design. Command ack protocol is novel for this codebase.
+- **Phase 5 (Multi-Agent Coordination):** Sub-agent event fan-out to parent streams, cascade stop/orphan policy for child sessions, and cost budget inheritance are all design-heavy. Claude Code's `--agents` flag and `--teammate-mode` need integration testing.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Foundation):** Standard EF Core setup, Aspire wiring -- well-documented Microsoft patterns.
-- **Phase 2 (Core Orchestration):** SSE in .NET 10 is well-documented. Channel-based event bus is standard.
-- **Phase 4 (CLI Client):** System.CommandLine 2.0 and Spectre.Console are well-documented.
-- **Phase 6 (Web Dashboard):** Blazor Interactive Server is well-documented. Standard CRUD + SSE consumption.
+- **Phase 1 (Schema/Infrastructure):** Standard EF Core migration and ConcurrentDictionary cache. Well-trodden ground.
+- **Phase 2 (Host Inventory):** Follows exact same pattern as existing `HostMetricPollingService` -- BackgroundService + SSH + DB persistence. Copy the pattern.
+- **Phase 4 (Git Worktrees):** `git worktree add/remove` is well-documented. The Claude Code `--worktree` flag is verified. Main novelty is the per-repo mutex in the host daemon.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies verified on NuGet with specific versions. .NET 10 LTS, Aspire 13.x GA, System.CommandLine finally stable. No speculative picks. |
-| Features | HIGH | Feature landscape validated against 5+ competitors (Claude Squad, Conductor, Warp Oz, GitHub Mission Control, Devin). Clear competitive positioning. MVP scope well-defined. |
-| Architecture | HIGH | Hub-and-spoke supervisor pattern is the industry standard for fleet management. Verified against Microsoft Azure Architecture Center patterns and academic papers. Existing scaffold validates the component structure. |
-| Pitfalls | HIGH | Pitfalls corroborated across GitHub Engineering Blog, Microsoft docs, and community experience. Each pitfall maps to specific scaffold code that exhibits the risk. |
+| Stack | HIGH | Zero new dependencies. All Claude Code CLI flags verified against official docs (2026-03-09). Existing codebase is primary source. |
+| Features | MEDIUM-HIGH | Feature landscape well-mapped. Dependency graph clear. Some differentiators (prompt redirect with idle detection) have uncertain feasibility, correctly deferred. |
+| Architecture | HIGH | Based on direct analysis of shipped 12,000 LOC codebase. Integration points mapped to specific files and methods. All modifications are additive except GitWorktreeProvider rewrite. |
+| Pitfalls | HIGH | Critical pitfalls corroborated across Anthropic engineering blog, git worktree community reports, and existing codebase analysis. Recovery strategies documented. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Host daemon design:** Research identifies the need for a lightweight host-side daemon but does not specify its protocol, deployment model, or update mechanism. Needs design during Phase 3 planning.
-- **Agent CLI version compatibility matrix:** Which versions of Claude Code, Codex, etc. are supported? No formal compatibility testing plan exists. Address during Phase 3 and Phase 5.
-- **Nomad job specification templates:** The Nomad backend is deferred to Phase 7 but the job spec design (resource limits, networking, artifact injection) needs research before implementation.
-- **SQLite concurrency limits:** Research flags SQLite concurrent write limitations. Need to determine the threshold where migration to Postgres becomes necessary (likely 10+ concurrent sessions).
-- **MAUI Blazor Hybrid component reuse:** The strategy assumes Blazor components can be shared between web and MAUI. This needs validation during Phase 6 to ensure components are designed for reuse.
-- **Token spend tracking:** Listed as v2+ feature but no research on how to extract token usage from different agent CLIs. Some agents expose this, others do not.
+- **SIGTSTP behavior across agent CLIs:** Only Claude Code's response to SIGTSTP has been partially documented. If agents ignore the signal, the "Paused" state becomes misleading. Needs testing during Phase 3. Fallback: treat pause as "stop reading stdin" rather than process suspension.
+- **Claude Code `--agents` flag in headless mode:** The `--agents` JSON configuration is documented but untested in SSH-launched headless sessions. Verify during Phase 5 that `--agents` works with `--output-format stream-json`.
+- **Worktree disk space at scale:** Each worktree consumes disk. With 10+ concurrent sessions on one host, disk pressure becomes a placement constraint. Phase 2 adds disk monitoring, but threshold tuning needs empirical data.
+- **Event fan-out for deep sub-agent trees:** Parent SSE stream receiving events from 5+ verbose children may overwhelm clients. Aggregation strategy (summary events vs. filtered forwarding) needs design during Phase 5.
+- **Worktree strategy reconciliation:** FEATURES.md recommends orchestrator-managed worktrees (agent-agnostic, `git worktree add` via SSH). STACK.md recommends passing `--worktree` to Claude Code. Resolution: use orchestrator-managed approach for agent-agnostic support, support `--worktree` passthrough as optimization for Claude Code sessions. Design `GitWorktreeProvider` to accommodate both.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [.NET 10 What's New](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-10/overview)
-- [ASP.NET Core 10 Release Notes](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0)
-- [Aspire 13 What's New](https://aspire.dev/whats-new/aspire-13/)
-- [EF Core 10 What's New](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew)
-- [SSE in ASP.NET Core .NET 10](https://www.milanjovanovic.tech/blog/server-sent-events-in-aspnetcore-and-dotnet-10)
-- [ModelContextProtocol 1.0 Release](https://www.dotnetramblings.com/post/05_03_2026/05_03_2026_3/)
-- [AI Agent Orchestration Patterns - Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [.NET Aspire Service Discovery](https://learn.microsoft.com/en-us/dotnet/aspire/service-discovery/overview)
-- [Multi-agent workflows often fail - GitHub Engineering](https://github.blog/ai-and-ml/generative-ai/multi-agent-workflows-often-fail-heres-how-to-engineer-ones-that-dont/)
+- [Claude Code CLI Reference](https://code.claude.com/docs/en/cli-reference) -- all CLI flags verified (session, worktree, agents, budget, model)
+- [Claude Code Sub-agents](https://code.claude.com/docs/en/sub-agents) -- sub-agent definition and coordination
+- [Claude Code Agent Teams](https://code.claude.com/docs/en/agent-teams) -- experimental multi-agent teams
+- [Claude Code Common Workflows](https://code.claude.com/docs/en/common-workflows) -- worktree workflow patterns
+- Existing codebase analysis (SessionCoordinator, SshBackend, DurableEventService, HostCommandProtocol, ClaudeCodeAdapter, GitWorktreeProvider, SimplePlacementEngine, HostMetricPollingService) -- 12,000 LOC, 178 files
 
-### Secondary (MEDIUM confidence)
-- [Conductors to Orchestrators (Addy Osmani / O'Reilly)](https://www.oreilly.com/radar/conductors-to-orchestrators-the-future-of-agentic-coding/)
-- [Control Plane as a Tool (arXiv)](https://arxiv.org/html/2505.06817)
-- [Orchestrating AI Agents in Production (Hatchworks)](https://hatchworks.com/blog/ai-agents/orchestrating-ai-agents/)
-- [10 Things Developers Want from Agentic IDEs (RedMonk)](https://redmonk.com/kholterhoff/2025/12/22/10-things-developers-want-from-their-agentic-ides-in-2025/)
-- [Codex App Worktrees Explained](https://www.verdent.ai/guides/codex-app-worktrees-explained)
+### Secondary (MEDIUM-HIGH confidence)
+- [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) -- Anthropic Engineering Blog (sub-agent limits, observability)
+- [Git worktrees for parallel AI coding agents](https://devcenter.upsun.com/posts/git-worktrees-for-parallel-ai-coding-agents/) -- Upsun (port conflicts, disk, merge conflicts)
+- [AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) -- Microsoft (orchestrator-worker patterns)
+- [Git Worktrees: The Secret Weapon for Parallel AI Coding Agents](https://medium.com/@mabd.dev/git-worktrees-the-secret-weapon-for-running-multiple-ai-coding-agents-in-parallel-e9046451eb96)
 
-### Tertiary (LOW confidence)
-- [Multi-Agent AI Orchestration: Enterprise Strategy 2025-2026 (OnAbout.ai)](https://www.onabout.ai/p/mastering-multi-agent-orchestration-architectures-patterns-roi-benchmarks-for-2025-2026)
-- [Agent Orchestration is Governance (Medium)](https://medium.com/@markus_brinsa/agent-orchestration-orchestration-isnt-magic-it-s-governance-210afb343914)
+### Tertiary (MEDIUM confidence)
+- [Multi-Agent Coordination Strategies](https://galileo.ai/blog/multi-agent-coordination-strategies) -- Galileo AI (task ownership, cascading failures)
+- [Multi-Agent Orchestration Patterns 2025-2026](https://www.onabout.ai/p/mastering-multi-agent-orchestration-architectures-patterns-roi-benchmarks-for-2025-2026)
+- [How to Build Multi-Agent Systems: Complete 2026 Guide](https://dev.to/eira-wexford/how-to-build-multi-agent-systems-complete-2026-guide-1io6)
 
 ---
-*Research completed: 2026-03-08*
+*Research completed: 2026-03-09*
 *Ready for roadmap: yes*
