@@ -138,6 +138,48 @@ public class ApiClientTests
             () => client.SendInputAsync("sess-1", "test"));
     }
 
+    [Fact]
+    public async Task GetSessionHistoryAsync_DeserializesEnvelopeWithTotalCount()
+    {
+        var (client, handler) = CreateClient();
+        var events = new List<SessionEvent>
+        {
+            new("s1", SessionEventKind.StdOut, DateTimeOffset.UtcNow, "line1"),
+            new("s1", SessionEventKind.StdErr, DateTimeOffset.UtcNow, "line2"),
+            new("s1", SessionEventKind.StdOut, DateTimeOffset.UtcNow, "line3",
+                new Dictionary<string, string> { ["exitCode"] = "0" })
+        };
+        handler.SetResponse(JsonSerializer.Serialize(
+            new { items = events, totalCount = 25 }, s_json));
+
+        var (items, totalCount) = await client.GetSessionHistoryAsync("s1", page: 1, pageSize: 3);
+
+        Assert.Equal(3, items.Count);
+        Assert.Equal(25, totalCount);
+        Assert.Equal("line1", items[0].Data);
+        Assert.Equal(SessionEventKind.StdOut, items[0].Kind);
+        Assert.Equal(SessionEventKind.StdErr, items[1].Kind);
+        Assert.NotNull(items[2].Meta);
+        Assert.Equal("0", items[2].Meta!["exitCode"]);
+    }
+
+    [Fact]
+    public async Task GetSessionHistoryAsync_SendsCorrectUrlWithQueryParams()
+    {
+        var (client, handler) = CreateClient();
+        handler.SetResponse(JsonSerializer.Serialize(
+            new { items = new List<SessionEvent>(), totalCount = 0 }, s_json));
+
+        await client.GetSessionHistoryAsync("sess-42", page: 2, pageSize: 50, kind: "StdOut,StdErr");
+
+        Assert.Equal(HttpMethod.Get, handler.LastRequest!.Method);
+        Assert.Contains("/api/sessions/sess-42/history", handler.LastRequest.RequestUri!.AbsolutePath);
+        var query = handler.LastRequest.RequestUri.Query;
+        Assert.Contains("page=2", query);
+        Assert.Contains("pageSize=50", query);
+        Assert.Contains("kind=StdOut", query);
+    }
+
     /// <summary>
     /// Simple mock handler that records the last request and returns a canned response.
     /// </summary>
