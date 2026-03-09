@@ -75,30 +75,30 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INVT-01 | — | Pending |
-| INVT-02 | — | Pending |
-| INVT-03 | — | Pending |
-| INVT-04 | — | Pending |
-| INTER-01 | — | Pending |
-| INTER-02 | — | Pending |
-| INTER-03 | — | Pending |
-| WKTREE-01 | — | Pending |
-| WKTREE-02 | — | Pending |
-| WKTREE-03 | — | Pending |
-| WKTREE-04 | — | Pending |
-| COORD-01 | — | Pending |
-| COORD-02 | — | Pending |
-| COORD-03 | — | Pending |
-| COORD-04 | — | Pending |
-| COORD-05 | — | Pending |
+| INFRA-01 | Phase 7 | Pending |
+| INFRA-02 | Phase 7 | Pending |
+| INVT-01 | Phase 7 | Pending |
+| INVT-02 | Phase 7 | Pending |
+| INVT-03 | Phase 7 | Pending |
+| INVT-04 | Phase 7 | Pending |
+| INTER-01 | Phase 8 | Pending |
+| INTER-02 | Phase 8 | Pending |
+| INTER-03 | Phase 8 | Pending |
+| WKTREE-01 | Phase 9 | Pending |
+| WKTREE-02 | Phase 9 | Pending |
+| WKTREE-03 | Phase 9 | Pending |
+| WKTREE-04 | Phase 9 | Pending |
+| COORD-01 | Phase 10 | Pending |
+| COORD-02 | Phase 10 | Pending |
+| COORD-03 | Phase 10 | Pending |
+| COORD-04 | Phase 10 | Pending |
+| COORD-05 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
