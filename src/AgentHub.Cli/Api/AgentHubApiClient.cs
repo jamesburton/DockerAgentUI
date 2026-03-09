@@ -72,7 +72,7 @@ public sealed class AgentHubApiClient
 
     // -- Session History --
 
-    public async Task<List<SessionEvent>> GetSessionHistoryAsync(
+    public async Task<(List<SessionEvent> Items, int TotalCount)> GetSessionHistoryAsync(
         string sessionId, int? page = null, int? pageSize = null, string? kind = null, CancellationToken ct = default)
     {
         var query = new List<string>();
@@ -84,8 +84,9 @@ public sealed class AgentHubApiClient
             + (query.Count > 0 ? "?" + string.Join("&", query) : "");
         var response = await _http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<SessionEvent>>(s_json, ct)
-            ?? [];
+        var result = await response.Content.ReadFromJsonAsync<SessionHistoryResponse>(s_json, ct)
+            ?? throw new InvalidOperationException("Failed to deserialize session history response.");
+        return (result.Items, result.TotalCount);
     }
 
     // -- Approvals --
@@ -101,5 +102,6 @@ public sealed class AgentHubApiClient
     // -- Internal DTOs --
 
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);
+    internal sealed record SessionHistoryResponse(List<SessionEvent> Items, int TotalCount);
     internal sealed record StartSessionResponse(string SessionId);
 }

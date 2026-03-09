@@ -105,7 +105,7 @@ public static class SessionLogsCommand
 
             while (true)
             {
-                var batch = await apiClient.GetSessionHistoryAsync(sessionId, page, pageSize, kind, ct);
+                var (batch, _) = await apiClient.GetSessionHistoryAsync(sessionId, page, pageSize, kind, ct);
                 allEvents.AddRange(batch);
                 if (batch.Count < pageSize)
                     break;
@@ -117,7 +117,7 @@ public static class SessionLogsCommand
         else
         {
             // Get tail N events - request a page that covers it
-            var events = await apiClient.GetSessionHistoryAsync(sessionId, 1, tail, kind, ct);
+            var (events, _) = await apiClient.GetSessionHistoryAsync(sessionId, 1, tail, kind, ct);
             return events;
         }
     }
@@ -141,5 +141,11 @@ public static class SessionLogsCommand
             AnsiConsole.MarkupLine($"{Markup.Escape(ts)} {Markup.Escape(evt.Data)}");
         else
             AnsiConsole.MarkupLine($"[{color}]{Markup.Escape(ts)} {Markup.Escape(label)}[/] {Markup.Escape(evt.Data)}");
+
+        if (evt.Meta is { Count: > 0 })
+        {
+            var metaPairs = string.Join(" ", evt.Meta.Select(kv => $"{kv.Key}={kv.Value}"));
+            AnsiConsole.MarkupLine($"[grey]         meta: {Markup.Escape(metaPairs)}[/]");
+        }
     }
 }
