@@ -1,0 +1,188 @@
+@page "/"
+@implements IDisposable
+@inject DashboardApiClient Api
+@inject SseStreamService SseService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Fleet Overview - AgentHub</PageTitle>
+
+<MudGrid>
+    @* Left column: Host sidebar *@
+    <MudItem xs="12" md="3">
+        <HostSidebar Hosts="_hosts"
+                     Sessions="_sessions"
+                     SelectedHostId="_selectedHostId"
+                     SelectedHostIdChanged="OnHostSelected" />
+    </MudItem>
+
+    @* Right column: Toolbar + Session table *@
+    <MudItem xs="12" md="9">
+        <MudPaper Class="pa-3 mb-3">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h6">Sessions</MudText>
+                <MudSpacer />
+                <MudSwitch T="bool" Value="_sseEnabled" ValueChanged="ToggleSse"
+                           Color="Color.Success" Label="Live Updates" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.RocketLaunch"
+                           OnClick="LaunchSession">
+                    Launch Session
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <SessionTable Sessions="@FilteredSessions"
+                      OnSessionSelected="OnSessionSelected"
+                      OnStopSession="OnStopSession" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<HostRecord> _hosts = [];
+    private List<SessionSummary> _sessions = [];
+    private string? _selectedHostId;
+    private bool _sseEnabled;
+    private Timer? _pollingTimer;
+    private CancellationTokenSource? _sseCts;
+    private bool _loading;
+
+    private List<SessionSummary> FilteredSessions =>
+        _selectedHostId is null
+            ? _sessions
+            : _sessions.Where(s => string.Equals(s.Node, _selectedHostId, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+        _pollingTimer = new Timer(async _ => await PollAsync(), null, TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(7));
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loading) return;
+        _loading = true;
+        try
+        {
+            var hostsTask = Api.GetHostsAsync();
+            var sessionsTask = Api.GetSessionsAsync();
+            await Task.WhenAll(hostsTask, sessionsTask);
+
+            _hosts = await hostsTask;
+            var (items, _) = await sessionsTask;
+            _sessions = items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PollAsync()
+    {
+        if (_sseEnabled) return;
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleSse(bool enabled)
+    {
+        _sseEnabled = enabled;
+
+        if (enabled)
+        {
+            _sseCts = new CancellationTokenSource();
+            var reader = SseService.SubscribeFleet(_sseCts.Token);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var evt in reader.ReadAllAsync(_sseCts.Token))
+                    {
+                        await InvokeAsync(() =>
+                        {
+                            if (evt.Kind == SessionEventKind.StateChanged)
+                            {
+                                var existing = _sessions.FindIndex(s => s.SessionId == evt.SessionId);
+                                if (existing >= 0)
+                                {
+                                    // Reload data to get updated state
+                                    _ = LoadDataAndRefresh();
+                                }
+                                else
+                                {
+                                    // New session, reload to include it
+                                    _ = LoadDataAndRefresh();
+                                }
+                            }
+                            StateHasChanged();
+                        });
+                    }
+                }
+                catch (OperationCanceledException) { /* expected */ }
+            });
+        }
+        else
+        {
+            _sseCts?.Cancel();
+            _sseCts?.Dispose();
+            _sseCts = null;
+        }
+    }
+
+    private async Task LoadDataAndRefresh()
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnHostSelected(string? hostId)
+    {
+        _selectedHostId = hostId;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSessionSelected(string sessionId)
+    {
+        Navigation.NavigateTo($"/session/{sessionId}");
+        return Task.CompletedTask;
+    }
+
+    private async Task OnStopSession(string sessionId)
+    {
+        try
+        {
+            await Api.StopSessionAsync(sessionId);
+            Snackbar.Add($"Session {sessionId[..8]} stop requested", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to stop session: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LaunchSession()
+    {
+        var dialog = await DialogService.ShowAsync<LaunchDialog>("Launch Session",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        _pollingTimer?.Dispose();
+        _sseCts?.Cancel();
+        _sseCts?.Dispose();
+    }
+}

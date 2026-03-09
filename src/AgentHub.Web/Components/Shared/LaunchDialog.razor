@@ -1,0 +1,115 @@
+@* Session launch dialog with agent type, host, prompt, and flags *@
+@inject DashboardApiClient Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-2" />
+            Launch Session
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="mt-2" Style="min-width: 400px;">
+            <MudSelect T="string" Label="Agent Type" @bind-Value="_agentType" Variant="Variant.Outlined">
+                @foreach (var agent in Enum.GetNames<AgentType>())
+                {
+                    <MudSelectItem T="string" Value="@agent">@agent</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string" Label="Target Host" @bind-Value="_targetHostId" Variant="Variant.Outlined"
+                       Clearable="true" Placeholder="Auto-place">
+                @if (_hosts is not null)
+                {
+                    @foreach (var host in _hosts.Where(h => h.Enabled))
+                    {
+                        <MudSelectItem T="string" Value="@host.HostId">@host.DisplayName</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+
+            <MudTextField T="string" Label="Prompt" @bind-Value="_prompt"
+                          Lines="3" Variant="Variant.Outlined"
+                          Placeholder="Describe the task for the agent..." />
+
+            <MudCheckBox T="bool" @bind-Value="_fireAndForget" Label="Fire and forget"
+                         Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_acceptRisk" Label="Skip permission prompts"
+                         Color="Color.Warning" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Launch" Disabled="_launching">
+            @if (_launching)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Launch
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private List<HostRecord>? _hosts;
+    private string _agentType = nameof(AgentType.ClaudeCode);
+    private string? _targetHostId;
+    private string _prompt = string.Empty;
+    private bool _fireAndForget;
+    private bool _acceptRisk;
+    private bool _launching;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _hosts = await Api.GetHostsAsync();
+        }
+        catch
+        {
+            Snackbar.Add("Failed to load hosts", Severity.Warning);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Launch()
+    {
+        if (string.IsNullOrWhiteSpace(_agentType))
+        {
+            Snackbar.Add("Please select an agent type", Severity.Warning);
+            return;
+        }
+
+        _launching = true;
+        try
+        {
+            var request = new StartSessionRequest(
+                ImageOrProfile: _agentType,
+                Requirements: new SessionRequirements(
+                    ExecutionMode: ExecutionMode.Ssh,
+                    AcceptRisk: _acceptRisk,
+                    TargetHostId: string.IsNullOrEmpty(_targetHostId) ? null : _targetHostId
+                ),
+                Prompt: string.IsNullOrWhiteSpace(_prompt) ? null : _prompt,
+                IsFireAndForget: _fireAndForget
+            );
+
+            var sessionId = await Api.StartSessionAsync(request);
+            Snackbar.Add($"Session {sessionId[..8]} launched", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(sessionId));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Launch failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _launching = false;
+        }
+    }
+}
