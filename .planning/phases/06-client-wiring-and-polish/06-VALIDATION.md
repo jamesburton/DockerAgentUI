@@ -1,9 +1,9 @@
 ---
 phase: 6
 slug: client-wiring-and-polish
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-09
 ---
 
@@ -38,12 +38,12 @@ created: 2026-03-09
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 06-01-01 | 01 | 1 | AGENT-03 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~ApiClientTests.SendInputAsync" --no-build -v q` | ❌ W0 | ⬜ pending |
-| 06-01-02 | 01 | 1 | AGENT-03 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~DashboardApiClientTests.SendInputAsync" --no-build -v q` | ❌ W0 | ⬜ pending |
-| 06-01-03 | 01 | 1 | AGENT-04 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionCoordinatorTests" --no-build -v q` | ✅ | ⬜ pending |
-| 06-02-01 | 02 | 2 | MON-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~HostMetricTests" --no-build -v q` | ❌ W0 | ⬜ pending |
-| 06-02-02 | 02 | 2 | MON-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~HostMetricTests.EmitsHostMetricsEvent" --no-build -v q` | ❌ W0 | ⬜ pending |
-| 06-03-01 | 03 | 2 | — | integration | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~FleetOverviewTests" --no-build -v q` | ❌ W0 | ⬜ pending |
+| 06-01-01 | 01 | 1 | AGENT-03 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~ApiClientTests.SendInputAsync" --no-build -v q` | ✅ | ✅ green (4 tests) |
+| 06-01-02 | 01 | 1 | AGENT-03 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~DashboardApiClientTests.SendInputAsync" --no-build -v q` | ✅ | ✅ green (2 tests) |
+| 06-01-03 | 01 | 1 | AGENT-04 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~SessionCoordinatorTests" --no-build -v q` | ✅ | ✅ green (7 tests) |
+| 06-02-01 | 02 | 2 | MON-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~HostMetricTests" --no-build -v q` | ✅ | ✅ green (13 tests) |
+| 06-02-02 | 02 | 2 | MON-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~HostMetricTests.EmitsHostMetricsEvent" --no-build -v q` | ✅ | ✅ green (included above) |
+| 06-03-01 | 03 | 2 | MON-02 | unit | `dotnet test tests/AgentHub.Tests --filter "FullyQualifiedName~FleetOverviewTests" --no-build -v q` | ✅ | ✅ green (7 tests) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,10 +51,10 @@ created: 2026-03-09
 
 ## Wave 0 Requirements
 
-- [ ] `tests/AgentHub.Tests/ApiClientTests.cs` — add SendInputAsync test methods (file exists, tests don't)
-- [ ] `tests/AgentHub.Tests/DashboardApiClientTests.cs` — add SendInputAsync test methods (file exists, tests don't)
-- [ ] `tests/AgentHub.Tests/HostMetricTests.cs` — new file for metric polling and SSE emission tests
-- [ ] `tests/AgentHub.Tests/FleetOverviewTests.cs` — new file for incremental patching tests
+- [x] `tests/AgentHub.Tests/ApiClientTests.cs` — SendInputAsync tests added during plan execution (4 tests)
+- [x] `tests/AgentHub.Tests/DashboardApiClientTests.cs` — SendInputAsync tests added during plan execution (2 tests)
+- [x] `tests/AgentHub.Tests/HostMetricTests.cs` — metric parsing, command, DTO tests added during plan execution (13 tests)
+- [x] `tests/AgentHub.Tests/FleetOverviewTests.cs` — incremental patching tests added by Nyquist auditor (7 tests)
 
 *If none: "Existing infrastructure covers all phase requirements."*
 
@@ -73,11 +73,20 @@ created: 2026-03-09
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-03-09
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |
