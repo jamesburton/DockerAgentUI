@@ -39,8 +39,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **CLI-01**: CLI client supports launching, monitoring, and managing sessions
 - [x] **CLI-02**: CLI supports both interactive and scriptable (non-interactive) modes
-- [ ] **WEB-01**: Blazor web dashboard shows fleet overview with live session status
-- [ ] **WEB-02**: Web dashboard streams real-time agent output inline
+- [x] **WEB-01**: Blazor web dashboard shows fleet overview with live session status
+- [x] **WEB-02**: Web dashboard streams real-time agent output inline
 
 ## v2 Requirements
 
@@ -105,8 +105,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 1 | Complete |
 | CLI-01 | Phase 3 | Complete |
 | CLI-02 | Phase 3 | Complete |
-| WEB-01 | Phase 4 | Pending |
-| WEB-02 | Phase 4 | Pending |
+| WEB-01 | Phase 4 | Complete |
+| WEB-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total
