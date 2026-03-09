@@ -196,6 +196,29 @@ public sealed class DashboardApiClientTests
     }
 
     [Fact]
+    public async Task SendInputAsync_PostsToInputEndpoint()
+    {
+        var (client, handler) = CreateClient();
+        handler.Response = new HttpResponseMessage(HttpStatusCode.OK);
+
+        await client.SendInputAsync("sess-1", "hello world");
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("sess-1", handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("/input", handler.LastRequest.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_ThrowsOnNonSuccessStatusCode()
+    {
+        var (client, handler) = CreateClient();
+        handler.Response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.SendInputAsync("sess-1", "test"));
+    }
+
+    [Fact]
     public async Task ResolveApprovalAsync_PostsToApprovalEndpoint()
     {
         var (client, handler) = CreateClient();

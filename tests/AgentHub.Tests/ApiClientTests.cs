@@ -113,6 +113,31 @@ public class ApiClientTests
         Assert.Contains("\"approved\":true", body);
     }
 
+    [Fact]
+    public async Task SendInputAsync_PostsToInputEndpoint()
+    {
+        var (client, handler) = CreateClient();
+        handler.SetResponse("", HttpStatusCode.OK);
+
+        await client.SendInputAsync("sess-1", "hello world");
+
+        Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
+        Assert.Contains("sess-1", handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("/input", handler.LastRequest.RequestUri.AbsolutePath);
+        var body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        Assert.Contains("hello world", body);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_ThrowsOnNonSuccessStatusCode()
+    {
+        var (client, handler) = CreateClient();
+        handler.SetResponse("", HttpStatusCode.InternalServerError);
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.SendInputAsync("sess-1", "test"));
+    }
+
     /// <summary>
     /// Simple mock handler that records the last request and returns a canned response.
     /// </summary>
