@@ -12,7 +12,20 @@
     <div class="terminal-content" id="terminal-@SessionId" style="overflow-anchor: auto;">
         @foreach (var evt in Events)
         {
-            <pre class="@GetEventClass(evt.Kind)">@evt.Data</pre>
+            <div class="terminal-event-row" @onclick="() => ToggleMeta(evt)"
+                 style="cursor: @(evt.Meta is { Count: > 0 } ? "pointer" : "default")">
+                <pre class="@GetEventClass(evt.Kind)">@evt.Data</pre>
+            </div>
+            @if (_expandedEvents.Contains(evt) && evt.Meta is { Count: > 0 })
+            {
+                <div class="terminal-meta-panel" style="padding: 4px 16px 8px 24px; background: rgba(255,255,255,0.03); border-left: 2px solid #555; margin-bottom: 4px; font-size: 0.85em;">
+                    @foreach (var kv in evt.Meta)
+                    {
+                        <span style="color: #888; margin-right: 4px;">@kv.Key:</span>
+                        <span style="color: #aaa; margin-right: 12px;">@kv.Value</span>
+                    }
+                </div>
+            }
         }
         <div id="terminal-anchor-@SessionId" style="overflow-anchor: auto; height: 1px;"></div>
     </div>
@@ -23,8 +36,15 @@
     [Parameter] public string SessionId { get; set; } = string.Empty;
 
     private bool _autoScroll = true;
+    private readonly HashSet<SessionEvent> _expandedEvents = [];
 
     private void ToggleAutoScroll() => _autoScroll = !_autoScroll;
+
+    private void ToggleMeta(SessionEvent evt)
+    {
+        if (!_expandedEvents.Remove(evt))
+            _expandedEvents.Add(evt);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
