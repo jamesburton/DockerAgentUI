@@ -15,10 +15,10 @@ Requirements for milestone v1.1 Multi-Agent & Interactive. Each maps to roadmap 
 
 ### Host Inventory
 
-- [ ] **INVT-01**: System discovers installed agent CLIs on each host via SSH probing
-- [ ] **INVT-02**: System detects agent CLI versions to prevent incompatible flag dispatch
-- [ ] **INVT-03**: System monitors available disk space on hosts via health polling
-- [ ] **INVT-04**: Inventory results are cached with configurable TTL and refreshable on demand
+- [x] **INVT-01**: System discovers installed agent CLIs on each host via SSH probing
+- [x] **INVT-02**: System detects agent CLI versions to prevent incompatible flag dispatch
+- [x] **INVT-03**: System monitors available disk space on hosts via health polling
+- [x] **INVT-04**: Inventory results are cached with configurable TTL and refreshable on demand
 
 ### Git Worktrees
 
@@ -77,10 +77,10 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | INFRA-01 | Phase 7 | Complete |
 | INFRA-02 | Phase 7 | Complete |
-| INVT-01 | Phase 7 | Pending |
-| INVT-02 | Phase 7 | Pending |
-| INVT-03 | Phase 7 | Pending |
-| INVT-04 | Phase 7 | Pending |
+| INVT-01 | Phase 7 | Complete |
+| INVT-02 | Phase 7 | Complete |
+| INVT-03 | Phase 7 | Complete |
+| INVT-04 | Phase 7 | Complete |
 | INTER-01 | Phase 8 | Pending |
 | INTER-02 | Phase 8 | Pending |
 | INTER-03 | Phase 8 | Pending |

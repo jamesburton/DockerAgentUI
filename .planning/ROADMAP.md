@@ -110,7 +110,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 4. Web Dashboard | v1.0 | 3/3 | Complete | 2026-03-09 |
 | 5. History API Contract Alignment | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 6. Client Wiring and Polish | v1.0 | 3/3 | Complete | 2026-03-09 |
-| 7. Infrastructure & Host Inventory | v1.1 | 0/3 | Planning | - |
+| 7. Infrastructure & Host Inventory | 2/3 | In Progress|  | - |
 | 8. Interactive Session Steering | v1.1 | 0/0 | Not started | - |
 | 9. Git Worktree Isolation | v1.1 | 0/0 | Not started | - |
 | 10. Multi-Agent Coordination | v1.1 | 0/0 | Not started | - |

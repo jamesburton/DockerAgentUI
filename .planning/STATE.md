@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Agent & Interactive
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-09T20:44:16Z"
-last_activity: 2026-03-09 -- Completed plan 07-01 data foundation (schema, cache, config)
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-09T21:01:34Z"
+last_activity: 2026-03-09 -- Completed plan 07-02 inventory polling service
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 8
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Current Position
 
 Phase: 7 of 10 (Infrastructure & Host Inventory)
-Plan: 1 of 3 complete
+Plan: 2 of 3 complete
 Status: Executing
-Last activity: 2026-03-09 -- Completed plan 07-01 data foundation (schema, cache, config)
+Last activity: 2026-03-09 -- Completed plan 07-02 inventory polling service
 
-Progress: [#░░░░░░░░░] 8%
+Progress: [##░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -61,6 +61,8 @@ Full decision log in PROJECT.md Key Decisions table.
 - v1.1 roadmap: Phase 8 and 9 can run in parallel (both depend on 7, independent of each other)
 - 07-01: ConcurrentDictionary.AddOrUpdate for atomic partial metric/inventory updates
 - 07-01: Self-referencing FK on SessionEntity with SetNull delete behavior for parent cleanup
+- 07-02: Singleton + AddHostedService dual registration for injectable background services
+- 07-02: printf/echo JSON construction in SSH probes avoids jq dependency on remote hosts
 
 ### Pending Todos
 
@@ -74,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T20:44:16Z
-Stopped at: Completed 07-01-PLAN.md
-Resume file: .planning/phases/07-infrastructure-host-inventory/07-01-SUMMARY.md
+Last session: 2026-03-09T21:01:34Z
+Stopped at: Completed 07-02-PLAN.md
+Resume file: .planning/phases/07-infrastructure-host-inventory/07-02-SUMMARY.md
