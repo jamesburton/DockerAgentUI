@@ -22,7 +22,8 @@ public static class SessionWatchCommand
         SseStreamReader sseReader,
         IOutputFormatter formatter,
         ApprovalPromptHandler? approvalHandler,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool enableInputHotkey = true)
     {
         // Fetch initial session info
         var session = await apiClient.GetSessionAsync(sessionId, ct);
@@ -45,7 +46,7 @@ public static class SessionWatchCommand
             return await RunJsonModeAsync(sessionId, sseReader, cts.Token);
         }
 
-        return await RunLiveModeAsync(sessionId, session, sseReader, approvalHandler, cts.Token);
+        return await RunLiveModeAsync(sessionId, session, apiClient, sseReader, approvalHandler, cts.Token);
     }
 
     private static async Task<int> RunJsonModeAsync(
@@ -68,14 +69,15 @@ public static class SessionWatchCommand
     }
 
     private static async Task<int> RunLiveModeAsync(
-        string sessionId, SessionSummary session, SseStreamReader sseReader,
-        ApprovalPromptHandler? approvalHandler, CancellationToken ct)
+        string sessionId, SessionSummary session, AgentHubApiClient apiClient,
+        SseStreamReader sseReader, ApprovalPromptHandler? approvalHandler, CancellationToken ct)
     {
         var lines = new List<string>(MaxBufferLines);
 
         while (!ct.IsCancellationRequested)
         {
             SessionEvent? pendingApproval = null;
+            bool inputRequested = false;
 
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Event");
@@ -93,6 +95,13 @@ public static class SessionWatchCommand
 
                     await foreach (var (_, evt) in sseReader.StreamSessionEventsAsync(sessionId, ct: ct))
                     {
+                        // Check for 'i' hotkey to enter input mode
+                        if (Console.KeyAvailable && Console.ReadKey(true).KeyChar == 'i')
+                        {
+                            inputRequested = true;
+                            return; // Exit Live context, same as approval pattern
+                        }
+
                         if (evt.Kind == SessionEventKind.Heartbeat)
                             continue;
 
@@ -132,6 +141,19 @@ public static class SessionWatchCommand
                 // Handle approval outside of Live context (Spectre.Console Pitfall 6)
                 await approvalHandler!.HandleApprovalEventAsync(pendingApproval, ct);
                 AnsiConsole.MarkupLine("[dim]Resuming watch...[/]");
+                continue; // Restart Live display
+            }
+
+            if (inputRequested)
+            {
+                AnsiConsole.Markup("[yellow]Input> [/]");
+                var text = Console.ReadLine();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    await apiClient.SendInputAsync(sessionId, text, ct);
+                    AnsiConsole.MarkupLine("[green]Input sent.[/]");
+                }
+                inputRequested = false;
                 continue; // Restart Live display
             }
 

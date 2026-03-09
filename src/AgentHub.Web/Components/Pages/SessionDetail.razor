@@ -71,6 +71,26 @@ else
     }
 
     <TerminalOutput Events="_events" SessionId="@SessionId" />
+
+    @if (_session?.State == SessionState.Running)
+    {
+        <MudPaper Class="pa-2 mt-2" Style="position: sticky; bottom: 0; z-index: 10;" Elevation="4">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudTextField @bind-Value="_inputText"
+                              Placeholder="Send input to session..."
+                              Variant="Variant.Outlined"
+                              Immediate="true"
+                              OnKeyDown="OnInputKeyDown"
+                              Disabled="_sending"
+                              Class="flex-grow-1" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           OnClick="SendInput"
+                           Disabled="@(string.IsNullOrWhiteSpace(_inputText) || _sending)">
+                    Send
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
 }
 
 @code {
@@ -81,6 +101,8 @@ else
     private readonly CancellationTokenSource _cts = new();
     private bool _loading = true;
     private readonly List<SessionEvent> _pendingApprovals = [];
+    private string _inputText = "";
+    private bool _sending;
 
     protected override async Task OnInitializedAsync()
     {
@@ -176,6 +198,32 @@ else
         {
             Snackbar.Add($"Failed to resolve approval: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task SendInput()
+    {
+        if (string.IsNullOrWhiteSpace(_inputText) || _sending) return;
+        _sending = true;
+        try
+        {
+            await Api.SendInputAsync(SessionId!, _inputText);
+            _inputText = "";
+            Snackbar.Add("Sent", Severity.Success, c => c.VisibleStateDuration = 1000);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private async Task OnInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_inputText))
+            await SendInput();
     }
 
     private string GetDuration()
