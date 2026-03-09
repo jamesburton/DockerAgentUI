@@ -16,6 +16,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Session Orchestration and Agent Execution** - Full session lifecycle on remote hosts with SSH backend, policy enforcement, and approval flow (completed 2026-03-08)
 - [ ] **Phase 3: CLI Client** - Primary user interface for launching, monitoring, and managing agent sessions
 - [x] **Phase 4: Web Dashboard** - Blazor fleet overview with live session streaming and resource visibility (completed 2026-03-09)
+- [ ] **Phase 5: History API Contract Alignment** - Fix history endpoint response shape and pagination (gap closure from audit)
+- [ ] **Phase 6: Client Wiring and Polish** - Wire input endpoint to clients, populate host metrics, SSE incremental updates, minor fixes (gap closure from audit)
 
 ## Phase Details
 
@@ -86,10 +88,38 @@ Plans:
 - [ ] 04-02-PLAN.md — Fleet overview page with host sidebar, session data table, polling/SSE toggle, launch dialog, stop capability
 - [ ] 04-03-PLAN.md — Session detail page with terminal output panel, live streaming, history replay, approval handling
 
+### Phase 5: History API Contract Alignment
+**Goal**: Session history API returns correctly shaped responses with working pagination, so CLI and Web clients can display full event metadata and paginate results
+**Depends on**: Phase 1, Phase 2, Phase 3, Phase 4
+**Requirements**: SESS-05, CLI-01, WEB-02
+**Gap Closure**: Closes INT-01, INT-02 from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. `/api/sessions/{id}/history` returns `SessionEvent` DTOs via `EntityMappers.ToDto()` (not anonymous objects)
+  2. History endpoint binds `page`, `pageSize`, and optional `kind` filter query parameters
+  3. CLI `ah session logs <id>` shows event metadata (Meta dictionary populated, not null)
+  4. Web SessionDetail history replay shows event metadata correctly
+  5. Integration tests verify response shape matches `SessionEvent` contract
+**Plans:** 0/0
+
+### Phase 6: Client Wiring and Polish
+**Goal**: All API endpoints have client callers, host resource metrics are populated, and minor quality issues are resolved
+**Depends on**: Phase 5
+**Requirements**: AGENT-03, AGENT-04, MON-02
+**Gap Closure**: Closes INT-03 from v1.0 audit + tech debt items
+**Success Criteria** (what must be TRUE):
+  1. CLI and Web clients expose `SendInputAsync` method calling `POST /api/sessions/{id}/input`
+  2. CLI has `ah session input <id> <text>` command for sending input to running sessions
+  3. Web SessionDetail page has an input panel for sending text to running sessions
+  4. Host resource metrics (CPU, memory) are populated from SSH status reports and display real values
+  5. FleetOverview SSE updates incrementally (patch state) rather than full reload
+  6. CS8602 nullable warning in SseStreamReader.cs resolved
+  7. API documentation/spec alignment: approval endpoint path matches implementation
+**Plans:** 0/0
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -97,3 +127,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 2. Session Orchestration and Agent Execution | 5/5 | Complete   | 2026-03-08 |
 | 3. CLI Client | 2/3 | In Progress | - |
 | 4. Web Dashboard | 3/3 | Complete   | 2026-03-09 |
+| 5. History API Contract Alignment | 0/0 | Pending | - |
+| 6. Client Wiring and Polish | 0/0 | Pending | - |

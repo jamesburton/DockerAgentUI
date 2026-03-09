@@ -91,22 +91,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SESS-02 | Phase 2 | Complete |
 | SESS-03 | Phase 2 | Complete |
 | SESS-04 | Phase 2 | Complete |
-| SESS-05 | Phase 2 | Complete |
+| SESS-05 | Phase 2, Phase 5 (gap closure) | Integration Fix |
 | MON-01 | Phase 1 | Complete |
-| MON-02 | Phase 3 | Complete |
+| MON-02 | Phase 3, Phase 6 (gap closure) | Integration Fix |
 | MON-03 | Phase 3 | Complete |
 | AGENT-01 | Phase 1 | Complete |
 | AGENT-02 | Phase 2 | Complete |
-| AGENT-03 | Phase 2 | Complete |
-| AGENT-04 | Phase 2 | Complete |
+| AGENT-03 | Phase 2, Phase 6 (gap closure) | Integration Fix |
+| AGENT-04 | Phase 2, Phase 6 (gap closure) | Integration Fix |
 | AGENT-05 | Phase 2 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| CLI-01 | Phase 3 | Complete |
+| CLI-01 | Phase 3, Phase 5 (gap closure) | Integration Fix |
 | CLI-02 | Phase 3 | Complete |
 | WEB-01 | Phase 4 | Complete |
-| WEB-02 | Phase 4 | Complete |
+| WEB-02 | Phase 4, Phase 5 (gap closure) | Integration Fix |
 
 **Coverage:**
 - v1 requirements: 20 total
@@ -115,4 +115,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after roadmap creation*
+*Last updated: 2026-03-09 after gap closure phase creation*
