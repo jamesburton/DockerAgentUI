@@ -85,6 +85,17 @@ public sealed class DashboardApiClient(HttpClient http)
         response.EnsureSuccessStatusCode();
     }
 
+    // -- Worktree --
+
+    public async Task<DiffStats?> GetSessionDiffAsync(string sessionId, CancellationToken ct = default)
+    {
+        var response = await http.GetAsync($"/api/sessions/{Uri.EscapeDataString(sessionId)}/diff", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.BadRequest)
+            return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DiffStats>(s_json, ct);
+    }
+
     // -- Host Inventory --
 
     public async Task RefreshInventoryAsync(string hostId, CancellationToken ct = default)

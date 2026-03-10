@@ -72,6 +72,54 @@ else
 
     <TerminalOutput Events="_events" SessionId="@SessionId" />
 
+    @if (_session.WorktreeBranch is not null)
+    {
+        <MudExpansionPanels Class="mt-4 mb-4" Elevation="1">
+            <MudExpansionPanel Text="Diff Stats" IsExpandedChanged="OnDiffPanelExpanded">
+                @if (_session.State is SessionState.Running or SessionState.Pending)
+                {
+                    <MudAlert Severity="Severity.Info" Class="my-2">Session still running -- diff stats available after completion.</MudAlert>
+                }
+                else if (_diffLoading)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="my-4" />
+                }
+                else if (_diffError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="my-2">@_diffError</MudAlert>
+                }
+                else if (_diffStats is not null)
+                {
+                    <MudTable Items="_diffStats.Files" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>File Path</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh Style="text-align:right">Insertions (+)</MudTh>
+                            <MudTh Style="text-align:right">Deletions (-)</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Path</MudTd>
+                            <MudTd>@context.Status</MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Color="Color.Success">+@context.Insertions</MudText>
+                            </MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Color="Color.Error">-@context.Deletions</MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        @_diffStats.Summary
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="my-2" Color="Color.Default">Expand to load diff stats.</MudText>
+                }
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    }
+
     <MudPaper Class="pa-2 mt-2" Style="position: sticky; bottom: 0; z-index: 10;" Elevation="4">
         <MudStack Row AlignItems="AlignItems.Center">
             <MudTextField @bind-Value="_inputText"
@@ -103,6 +151,11 @@ else
     private readonly Queue<DateTimeOffset> _recentInputs = new();
     private const int RapidFireThreshold = 3;
     private static readonly TimeSpan RapidFireWindow = TimeSpan.FromSeconds(10);
+
+    // Diff stats
+    private DiffStats? _diffStats;
+    private bool _diffLoading;
+    private string? _diffError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -236,6 +289,29 @@ else
     {
         if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_inputText))
             await SendInput();
+    }
+
+    private async Task OnDiffPanelExpanded(bool expanded)
+    {
+        if (!expanded) return;
+        if (_diffStats is not null || _diffLoading) return;
+        if (_session?.State is SessionState.Running or SessionState.Pending) return;
+
+        _diffLoading = true;
+        try
+        {
+            _diffStats = await Api.GetSessionDiffAsync(SessionId, _cts.Token);
+            if (_diffStats is null)
+                _diffError = "Could not load diff stats for this session.";
+        }
+        catch (Exception ex)
+        {
+            _diffError = ex.Message;
+        }
+        finally
+        {
+            _diffLoading = false;
+        }
     }
 
     private string GetDuration()
