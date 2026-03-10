@@ -15,6 +15,11 @@ public static class SessionWatchCommand
     private const int MaxBufferLines = 500;
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
 
+    // Rapid-fire detection
+    private static readonly Queue<DateTimeOffset> s_recentInputs = new();
+    private const int RapidFireThreshold = 3;
+    private static readonly TimeSpan RapidFireWindow = TimeSpan.FromSeconds(10);
+
     public static async Task<int> ExecuteAsync(
         string sessionId,
         bool jsonMode,
@@ -150,8 +155,14 @@ public static class SessionWatchCommand
                 var text = Console.ReadLine();
                 if (!string.IsNullOrEmpty(text))
                 {
-                    await apiClient.SendInputAsync(sessionId, text, ct);
-                    AnsiConsole.MarkupLine("[green]Input sent.[/]");
+                    var delivered = await apiClient.SendInputAsync(sessionId, text, ct, isFollowUp: true);
+                    if (delivered)
+                        AnsiConsole.MarkupLine("[green]Steering delivered.[/]");
+                    else
+                        AnsiConsole.MarkupLine("[yellow]Warning: Delivery unconfirmed.[/]");
+
+                    if (CheckRapidFire())
+                        AnsiConsole.MarkupLine("[yellow]Warning: Sending multiple commands rapidly -- agent may not process them in order[/]");
                 }
                 inputRequested = false;
                 continue; // Restart Live display
@@ -184,9 +195,22 @@ public static class SessionWatchCommand
             SessionEventKind.Info => $"[blue]{ts} INFO[/] ",
             SessionEventKind.Threat => $"[red]{ts} THREAT[/] ",
             SessionEventKind.SessionCompleted => $"[green]{ts} DONE[/] ",
+            SessionEventKind.SteeringInput => $"[cyan]{ts} STEER>[/] ",
+            SessionEventKind.SteeringDelivered => $"[green]{ts} DELIVERED[/] ",
             _ => $"{ts} ",
         };
         return $"{prefix}{evt.Data}";
+    }
+
+    private static bool CheckRapidFire()
+    {
+        var now = DateTimeOffset.UtcNow;
+        s_recentInputs.Enqueue(now);
+
+        while (s_recentInputs.Count > 0 && now - s_recentInputs.Peek() > RapidFireWindow)
+            s_recentInputs.Dequeue();
+
+        return s_recentInputs.Count >= RapidFireThreshold;
     }
 
     private static string FormatState(SessionState state) => state switch

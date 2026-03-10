@@ -62,12 +62,26 @@ public sealed class AgentHubApiClient
 
     // -- Input --
 
-    public async Task SendInputAsync(string sessionId, string text, CancellationToken ct = default)
+    public async Task<bool> SendInputAsync(string sessionId, string text, CancellationToken ct = default, bool isFollowUp = false)
     {
         var response = await _http.PostAsJsonAsync(
             $"/api/sessions/{Uri.EscapeDataString(sessionId)}/input",
-            new SendInputRequest(text), s_json, ct);
+            new SendInputRequest(text, IsFollowUp: isFollowUp), s_json, ct);
         response.EnsureSuccessStatusCode();
+
+        try
+        {
+            using var doc = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            if (doc.RootElement.TryGetProperty("delivered", out var prop))
+                return prop.GetBoolean();
+        }
+        catch (JsonException)
+        {
+            // Response body may not be JSON -- treat as unconfirmed
+        }
+
+        return false;
     }
 
     // -- Hosts --
