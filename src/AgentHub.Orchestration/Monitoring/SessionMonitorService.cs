@@ -75,14 +75,16 @@ public sealed class SessionMonitorService : BackgroundService
         foreach (var session in runningSessions)
         {
             // Find the most recent event for this session
-            var lastEventTime = await db.Events
+            // Note: OrderByDescending on DateTimeOffset fails with SQLite EF Core provider.
+            // Fetch filtered values and sort in-memory instead.
+            var eventTimes = await db.Events
                 .Where(e => e.SessionId == session.SessionId)
-                .OrderByDescending(e => e.TsUtc)
                 .Select(e => (DateTimeOffset?)e.TsUtc)
-                .FirstOrDefaultAsync(ct);
+                .ToListAsync(ct);
+            var latestEvent = eventTimes.OrderByDescending(t => t).FirstOrDefault();
 
             // Use session creation time if no events exist
-            var lastActivityTime = lastEventTime ?? session.CreatedUtc;
+            var lastActivityTime = latestEvent ?? session.CreatedUtc;
 
             if (lastActivityTime < cutoff)
             {

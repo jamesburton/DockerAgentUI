@@ -218,6 +218,11 @@ app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, 
         logger.LogError(ex, "Network error starting session: {Message}", ex.Message);
         return Results.Json(new { error = $"Cannot reach host: {ex.Message}" }, statusCode: 502);
     }
+    catch (Renci.SshNet.Common.SshException ex)
+    {
+        logger.LogError(ex, "SSH error starting session: {Message}", ex.Message);
+        return Results.Json(new { error = $"SSH connection failed: {ex.Message}" }, statusCode: 502);
+    }
     catch (Exception ex) when (ex is not OperationCanceledException)
     {
         logger.LogError(ex, "Unexpected error starting session: {Message}", ex.Message);
@@ -286,6 +291,12 @@ app.MapGet("/api/sessions/{sessionId}/diff", async (
     // which may miss sessions if the backend service was restarted)
     await using var db = await dbFactory.CreateDbContextAsync(ct);
     var entity = await db.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId && s.OwnerUserId == user.UserId, ct);
+    if (entity is null)
+    {
+        // Prefix match fallback for truncated CLI IDs
+        entity = await db.Sessions.FirstOrDefaultAsync(
+            s => s.SessionId.StartsWith(sessionId) && s.OwnerUserId == user.UserId, ct);
+    }
     if (entity is null) return Results.NotFound(new { error = $"Session '{sessionId}' not found" });
     if (entity.WorktreeBranch is null) return Results.BadRequest(new { error = "Session is not a worktree session" });
 

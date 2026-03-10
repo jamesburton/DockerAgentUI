@@ -26,6 +26,13 @@ public sealed class WorktreeService
         var cmd = $"cd {ShellEscape(repoRoot)} && git worktree add -b {ShellEscape(branchName)} {ShellEscape(worktreePath)} HEAD 2>&1";
         var output = await connection.ExecuteCommandAsync(cmd, ct);
 
+        if (output.Contains("fatal:", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("error:", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError("Git worktree creation failed: {Output}", output);
+            throw new InvalidOperationException($"Git worktree creation failed: {output.Trim()}");
+        }
+
         _logger.LogInformation("Created worktree at {Path} on branch {Branch}", worktreePath, branchName);
         return worktreePath;
     }
