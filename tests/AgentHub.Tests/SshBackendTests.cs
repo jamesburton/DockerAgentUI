@@ -5,6 +5,7 @@ using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using AgentHub.Orchestration.HostDaemon;
 using AgentHub.Orchestration.Monitoring;
+using AgentHub.Orchestration.Worktree;
 using AgentHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -45,11 +46,13 @@ public class SshBackendTests
         var dbFactory = CreateFactory(dbName);
         factory ??= new MockSshHostConnectionFactory();
         hostRegistry ??= new TestHostRegistry();
+        var worktreeService = new WorktreeService(NullLogger<WorktreeService>.Instance);
 
         return new SshBackend(
             dbFactory,
             hostRegistry,
             factory,
+            worktreeService,
             NullLogger<SshBackend>.Instance,
             CreateConfig());
     }

@@ -4,6 +4,7 @@ using AgentHub.Contracts;
 using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using AgentHub.Orchestration.HostDaemon;
+using AgentHub.Orchestration.Worktree;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,7 @@ public sealed class SshBackend : ISessionBackend
     private readonly IDbContextFactory<AgentHubDbContext> _dbFactory;
     private readonly IHostRegistry _hostRegistry;
     private readonly ISshHostConnectionFactory _connectionFactory;
+    private readonly WorktreeService _worktreeService;
     private readonly ILogger<SshBackend> _logger;
     private readonly string _sshKeyPath;
     private readonly string _sshUsername;
@@ -36,12 +38,14 @@ public sealed class SshBackend : ISessionBackend
         IDbContextFactory<AgentHubDbContext> dbFactory,
         IHostRegistry hostRegistry,
         ISshHostConnectionFactory connectionFactory,
+        WorktreeService worktreeService,
         ILogger<SshBackend> logger,
         IConfiguration configuration)
     {
         _dbFactory = dbFactory;
         _hostRegistry = hostRegistry;
         _connectionFactory = connectionFactory;
+        _worktreeService = worktreeService;
         _logger = logger;
         _sshKeyPath = configuration["Ssh:PrivateKeyPath"]
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
@@ -94,12 +98,29 @@ public sealed class SshBackend : ISessionBackend
 
         var sessionId = $"ssh_{Guid.NewGuid():N}";
 
+        // Worktree creation (before agent start)
+        string? worktreePath = null;
+        string? worktreeBranch = null;
+
+        if (!string.IsNullOrEmpty(request.WorktreeId))
+        {
+            worktreeBranch = BranchNameGenerator.Generate(sessionId, request.Prompt);
+            var repoRootCmd = "git rev-parse --show-toplevel 2>/dev/null";
+            var repoRoot = (await connection.ExecuteCommandAsync(repoRootCmd, ct)).Trim();
+            if (string.IsNullOrEmpty(repoRoot))
+                throw new InvalidOperationException("Could not determine git repo root on remote host.");
+
+            var wtPath = $"{repoRoot}/.worktrees/{sessionId}";
+            worktreePath = await _worktreeService.CreateWorktreeAsync(
+                connection, repoRoot, wtPath, worktreeBranch, ct);
+        }
+
         // Build the start-session payload
         var payload = new StartSessionPayload
         {
             AgentType = request.ImageOrProfile,
             Prompt = request.Prompt ?? request.Reason ?? "",
-            WorkingDirectory = $"/sessions/{sessionId}",
+            WorkingDirectory = worktreePath ?? $"/sessions/{sessionId}",
             Permissions = new PermissionPayload
             {
                 SkipPermissionPrompts = request.Requirements.AcceptRisk
@@ -132,7 +153,9 @@ public sealed class SshBackend : ISessionBackend
             Node = placement.NodeId,
             AgentType = request.ImageOrProfile,
             RequirementsJson = JsonSerializer.Serialize(request.Requirements),
-            WorktreePath = $"/sessions/{sessionId}",
+            WorktreePath = worktreePath ?? $"/sessions/{sessionId}",
+            WorktreeBranch = worktreeBranch,
+            KeepBranch = request.KeepBranch,
             RiskAcceptedBy = ownerUserId,
             IsFireAndForget = request.IsFireAndForget,
             Prompt = request.Prompt ?? request.Reason,
@@ -190,6 +213,8 @@ public sealed class SshBackend : ISessionBackend
             // Force-kill: send force-kill command immediately
             await SendCommandToSession(sessionId, HostCommandProtocol.CreateForceKill(sessionId), ct);
             await UpdateSessionStateAsync(sessionId, SessionState.Stopped, ct);
+            // Force-kill keeps worktree by default; only cleanup if CleanupPolicy is explicitly "cleanup"
+            await CleanupWorktreeIfNeeded(sessionId, forceKill: true, ct);
             await CleanupConnection(sessionId);
             _logger.LogInformation("Force-killed session {SessionId}", sessionId);
             return;
@@ -223,6 +248,7 @@ public sealed class SshBackend : ISessionBackend
         }
 
         await UpdateSessionStateAsync(sessionId, SessionState.Stopped, ct);
+        await CleanupWorktreeIfNeeded(sessionId, forceKill: false, ct);
         await CleanupConnection(sessionId);
     }
 
@@ -244,6 +270,67 @@ public sealed class SshBackend : ISessionBackend
     }
 
     // --- Private helpers ---
+
+    private async Task CleanupWorktreeIfNeeded(string sessionId, bool forceKill, CancellationToken ct)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var session = await db.Sessions.FindAsync(new object[] { sessionId }, ct);
+        if (session?.WorktreeBranch is null) return; // Not a worktree session
+
+        // Force-kill keeps worktree by default; only cleanup if CleanupPolicy is explicitly "cleanup"
+        if (forceKill && session.CleanupPolicy != "cleanup") return;
+
+        // Determine cleanup policy for graceful stop
+        var shouldCleanup = session.CleanupPolicy switch
+        {
+            "keep" => false,
+            "cleanup" => true,
+            _ => true // "auto": clean on graceful stop
+        };
+
+        if (!shouldCleanup) return;
+
+        var keepBranch = session.KeepBranch;
+
+        // Get or create SSH connection for cleanup
+        ISshHostConnection? connection = null;
+        var needsDispose = false;
+        if (_connections.TryGetValue(sessionId, out connection))
+        {
+            // Use existing connection
+        }
+        else
+        {
+            // Create fresh connection for cleanup
+            var host = await _hostRegistry.GetAsync(session.Node!, ct);
+            if (host?.Address is null) return;
+            var hostAddress = host.Address.Replace("ssh://", "");
+            connection = _connectionFactory.Create(hostAddress, _sshUsername, _sshKeyPath);
+            await connection.ConnectAsync(ct);
+            needsDispose = true;
+        }
+
+        try
+        {
+            var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+            if (!string.IsNullOrEmpty(repoRoot))
+            {
+                await _worktreeService.CleanupWorktreeAsync(
+                    connection, repoRoot, session.WorktreePath!, session.WorktreeBranch,
+                    sessionId, keepBranch: keepBranch, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Worktree cleanup failed for session {SessionId}", sessionId);
+        }
+        finally
+        {
+            if (needsDispose && connection is not null)
+                await connection.DisposeAsync();
+        }
+    }
+
 
     private async Task SendCommandToSession(string sessionId, HostCommand command, CancellationToken ct)
     {
