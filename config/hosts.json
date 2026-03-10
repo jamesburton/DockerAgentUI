@@ -10,13 +10,13 @@
     "address": "http://nomad-dev-01:4646"
   },
   {
-    "hostId": "ssh-win-dev-01",
-    "displayName": "SSH Windows Dev 01",
+    "hostId": "local-ssh",
+    "displayName": "Local SSH (Strix)",
     "backend": "ssh",
     "os": "windows",
     "enabled": true,
     "allowSsh": true,
-    "labels": { "tier": "dev", "acceptRisk": "true" },
-    "address": "ssh://ssh-win-dev-01"
+    "labels": { "tier": "dev", "region": "local" },
+    "address": "ssh://localhost"
   }
 ]
