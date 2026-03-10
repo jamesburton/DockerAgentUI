@@ -1,6 +1,13 @@
 using System.Text.Json;
 using AgentHub.Contracts;
+using AgentHub.Orchestration;
+using AgentHub.Orchestration.Config;
+using AgentHub.Orchestration.Coordinator;
+using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.HostDaemon;
+using AgentHub.Orchestration.Security;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AgentHub.Tests;
@@ -122,4 +129,181 @@ public class SteeringContractTests
         Assert.Equal("test", payload.Input);
         Assert.True(payload.IsFollowUp);
     }
+}
+
+/// <summary>
+/// Tests for the steering pipeline: coordinator event emission,
+/// delivery confirmation, and warning on failure.
+/// </summary>
+public class SteeringPipelineTests
+{
+    private IDbContextFactory<AgentHubDbContext> CreateFactory()
+    {
+        var options = new DbContextOptionsBuilder<AgentHubDbContext>()
+            .UseInMemoryDatabase($"steering-test-{Guid.NewGuid():N}")
+            .Options;
+        return new TestDbContextFactory(options);
+    }
+
+    private async Task<(SessionCoordinator coordinator, string sessionId, SteeringTestBackend backend)> SetupWithSession(
+        bool backendDelivers = true)
+    {
+        var dbFactory = CreateFactory();
+        var backend = new SteeringTestBackend(backendDelivers);
+        var approvalService = new ApprovalService(dbFactory, NullLogger<ApprovalService>.Instance);
+
+        var coordinator = new SessionCoordinator(
+            [backend],
+            new SteeringTestPlacement(),
+            new SteeringTestSanitizer(),
+            new SteeringTestSkillRegistry(),
+            new SteeringTestAllowAllPolicy(),
+            approvalService,
+            dbFactory);
+
+        var sessionId = await coordinator.StartSessionAsync("user-1",
+            new StartSessionRequest("test-image", new SessionRequirements()),
+            _ => Task.CompletedTask, CancellationToken.None);
+
+        return (coordinator, sessionId, backend);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_IsFollowUpTrue_EmitsSteeringInputBeforeBackendCall()
+    {
+        var (coordinator, sessionId, _) = await SetupWithSession(backendDelivers: true);
+        var events = new List<SessionEvent>();
+
+        await coordinator.SendInputAsync("user-1", sessionId,
+            new SendInputRequest("steer me", IsFollowUp: true),
+            e => { events.Add(e); return Task.CompletedTask; },
+            CancellationToken.None);
+
+        Assert.Contains(events, e => e.Kind == SessionEventKind.SteeringInput);
+        var steeringEvent = events.First(e => e.Kind == SessionEventKind.SteeringInput);
+        Assert.Equal("steer me", steeringEvent.Data);
+        Assert.NotNull(steeringEvent.Meta);
+        Assert.Equal("true", steeringEvent.Meta!["isFollowUp"]);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_IsFollowUpTrue_EmitsSteeringDeliveredOnSuccess()
+    {
+        var (coordinator, sessionId, _) = await SetupWithSession(backendDelivers: true);
+        var events = new List<SessionEvent>();
+
+        await coordinator.SendInputAsync("user-1", sessionId,
+            new SendInputRequest("steer me", IsFollowUp: true),
+            e => { events.Add(e); return Task.CompletedTask; },
+            CancellationToken.None);
+
+        Assert.Contains(events, e => e.Kind == SessionEventKind.SteeringDelivered);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_IsFollowUpTrue_EmitsWarningWhenBackendReturnsFalse()
+    {
+        var (coordinator, sessionId, _) = await SetupWithSession(backendDelivers: false);
+        var events = new List<SessionEvent>();
+
+        await coordinator.SendInputAsync("user-1", sessionId,
+            new SendInputRequest("steer me", IsFollowUp: true),
+            e => { events.Add(e); return Task.CompletedTask; },
+            CancellationToken.None);
+
+        // Should NOT emit SteeringDelivered
+        Assert.DoesNotContain(events, e => e.Kind == SessionEventKind.SteeringDelivered);
+        // Should emit a warning Info event
+        Assert.Contains(events, e => e.Kind == SessionEventKind.Info
+            && e.Data.Contains("unconfirmed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SendInputAsync_IsFollowUpFalse_DoesNotEmitSteeringEvents()
+    {
+        var (coordinator, sessionId, _) = await SetupWithSession(backendDelivers: true);
+        var events = new List<SessionEvent>();
+
+        await coordinator.SendInputAsync("user-1", sessionId,
+            new SendInputRequest("regular input", IsFollowUp: false),
+            e => { events.Add(e); return Task.CompletedTask; },
+            CancellationToken.None);
+
+        Assert.DoesNotContain(events, e => e.Kind == SessionEventKind.SteeringInput);
+        Assert.DoesNotContain(events, e => e.Kind == SessionEventKind.SteeringDelivered);
+    }
+
+    [Fact]
+    public async Task InMemoryBackend_SendInputAsync_ReturnsTrue()
+    {
+        var backend = new AgentHub.Orchestration.Backends.InMemoryBackend();
+        var result = await backend.SendInputAsync("test-session",
+            new SendInputRequest("hello"), CancellationToken.None);
+        Assert.True(result);
+    }
+}
+
+// --- Test helpers for steering pipeline tests ---
+
+internal sealed class SteeringTestBackend(bool delivers) : ISessionBackend
+{
+    private readonly Dictionary<string, SessionSummary> _sessions = new();
+
+    public string Name => "steering-test";
+
+    public bool CanHandle(SessionRequirements requirements, NodeCapability node) => true;
+
+    public Task<IReadOnlyList<NodeCapability>> GetInventoryAsync(CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<NodeCapability>>([
+            new NodeCapability("test-node-01", Name, "linux", 8, 16384, false, false,
+                new Dictionary<string, string> { ["tier"] = "dev" })
+        ]);
+
+    public Task<string> StartAsync(string ownerUserId, StartSessionRequest request, PlacementDecision placement,
+        Func<SessionEvent, Task> emit, CancellationToken ct)
+    {
+        var id = $"st_{Guid.NewGuid():N}";
+        _sessions[id] = new SessionSummary(id, ownerUserId, SessionState.Running, DateTimeOffset.UtcNow,
+            Name, placement.NodeId, request.Requirements);
+        return Task.FromResult(id);
+    }
+
+    public Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
+        => Task.FromResult(delivers);
+
+    public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct) => Task.CompletedTask;
+
+    public Task<SessionSummary?> GetAsync(string sessionId, CancellationToken ct)
+        => Task.FromResult(_sessions.TryGetValue(sessionId, out var s) ? s : null);
+
+    public Task<IReadOnlyList<SessionSummary>> ListAsync(string ownerUserId, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<SessionSummary>>(
+            _sessions.Values.Where(s => s.OwnerUserId == ownerUserId).ToArray());
+}
+
+internal sealed class SteeringTestPlacement : IPlacementEngine
+{
+    public PlacementDecision ChooseNode(string ownerUserId, SessionRequirements requirements, IReadOnlyList<NodeCapability> inventory)
+        => new(inventory[0].Backend, inventory[0].NodeId);
+}
+
+internal sealed class SteeringTestSanitizer : ISanitizationService
+{
+    public SanitizationDecision Evaluate(SendInputRequest request, SessionSummary session, SkillManifest? skill)
+        => new(true, request.Input, RiskLevel.Low, ["Input accepted"]);
+
+    public TrustTierDecision EvaluateWithTrustTier(string action, ScopedPolicyConfig? policy)
+        => new(TrustTier.AlwaysAllow, RequiresApproval: false, Denied: false);
+}
+
+internal sealed class SteeringTestSkillRegistry : ISkillRegistry
+{
+    public IReadOnlyList<SkillManifest> GetAll() => [];
+    public SkillManifest? TryGet(string skillId) => null;
+}
+
+internal sealed class SteeringTestAllowAllPolicy : ISkillPolicyService
+{
+    public PolicySnapshot GetPolicySnapshot() => new("allow-all", DateTimeOffset.UtcNow, [], [], []);
+    public bool IsAllowed(string? skillId, SessionSummary session, bool elevated) => true;
 }

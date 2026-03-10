@@ -121,7 +121,32 @@ public sealed class SessionCoordinator(
                 ["risk"] = decision.Risk.ToString()
             }));
 
+        // Emit steering event before backend call when this is a follow-up instruction
+        if (request.IsFollowUp)
+        {
+            await emit(new SessionEvent(sessionId, SessionEventKind.SteeringInput, DateTimeOffset.UtcNow,
+                request.Input,
+                new Dictionary<string, string> { ["isFollowUp"] = "true" }));
+        }
+
         var delivered = await backend.SendInputAsync(sessionId, request with { Input = decision.NormalizedInput }, ct);
+
+        // Emit delivery confirmation or warning for follow-up instructions
+        if (request.IsFollowUp)
+        {
+            if (delivered)
+            {
+                await emit(new SessionEvent(sessionId, SessionEventKind.SteeringDelivered, DateTimeOffset.UtcNow,
+                    "Steering command delivered"));
+            }
+            else
+            {
+                await emit(new SessionEvent(sessionId, SessionEventKind.Info, DateTimeOffset.UtcNow,
+                    "Warning: Delivery unconfirmed -- host daemon did not acknowledge",
+                    new Dictionary<string, string> { ["warning"] = "delivery-unconfirmed" }));
+            }
+        }
+
         return delivered;
     }
 
