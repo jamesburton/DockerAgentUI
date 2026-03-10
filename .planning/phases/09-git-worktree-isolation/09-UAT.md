@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 09-git-worktree-isolation
 source: 09-01-SUMMARY.md, 09-02-SUMMARY.md
 started: 2026-03-10T15:00:00Z
-updated: 2026-03-10T15:20:00Z
+updated: 2026-03-10T15:30:00Z
 ---
 
 ## Current Test
@@ -74,48 +74,90 @@ skipped: 2
 
 - truth: "Server boots without errors, migrations complete, and homepage loads with live data"
   status: failed
-  reason: "User reported: SessionMonitorService crashes with System.NotSupportedException: SQLite does not support expressions of type 'DateTimeOffset' in ORDER BY clauses. HostMetricPollingService and HostInventoryPollingService fail with SocketException for local-ssh host."
+  reason: "User reported: SessionMonitorService crashes with System.NotSupportedException: SQLite does not support expressions of type 'DateTimeOffset' in ORDER BY clauses."
   severity: blocker
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "SessionMonitorService.cs:80 — OrderByDescending(e => e.TsUtc) on DateTimeOffset column that SQLite EF Core provider cannot translate in ORDER BY"
+  artifacts:
+    - path: "src/AgentHub.Orchestration/Monitoring/SessionMonitorService.cs"
+      issue: "OrderByDescending on DateTimeOffset column at line 80"
+  missing:
+    - "Use AsEnumerable() before OrderByDescending to perform ordering in memory after WHERE filter"
+  debug_session: ".planning/debug/sqlite-datetimeoffset-orderby.md"
 
 - truth: "Session starts successfully with worktree, host creates git worktree, session detail shows branch name"
   status: failed
   reason: "User reported: There is no sign of anything actually happening within the session, as it doesn't create any worktrees nor provide any session details (not even the trigger prompt)."
   severity: blocker
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "Two failures: (1) LaunchDialog worktree toggle doesn't auto-enable AcceptRisk, so SimplePlacementEngine:31-32 rejects with 400 that UI swallows silently. (2) WorktreeService.CreateWorktreeAsync:22-31 never checks git command output — failures silently swallowed."
+  artifacts:
+    - path: "src/AgentHub.Web/Components/Shared/LaunchDialog.razor"
+      issue: "Worktree toggle independent of AcceptRisk — SSH requires AcceptRisk but worktree doesn't auto-set it"
+    - path: "src/AgentHub.Orchestration/Worktree/WorktreeService.cs"
+      issue: "CreateWorktreeAsync lines 22-31 ignores git command exit status/output"
+    - path: "src/AgentHub.Orchestration/Placement/SimplePlacementEngine.cs"
+      issue: "Lines 31-32 hard gate: SSH requires AcceptRisk with no worktree bypass"
+  missing:
+    - "Auto-enable AcceptRisk when worktree is toggled on (SSH is required for worktree)"
+    - "Check git worktree add output for errors and throw InvalidOperationException on failure"
+  debug_session: ".planning/debug/worktree-session-silent-fail.md"
 
 - truth: "Diff Stats panel shows files changed with added/removed line counts after session completes"
   status: failed
-  reason: "User reported: Diff Stats panel shows 'Session still running -- diff stats available after completion' and stays like this indefinitely as no session appears to be running."
+  reason: "User reported: Diff Stats panel shows 'Session still running -- diff stats available after completion' and stays like this indefinitely."
   severity: major
   test: 4
-  artifacts: []
-  missing: []
+  root_cause: "SessionDetail.razor SSE loop (lines 174-189) exits silently when stream ends without refreshing session state. _session.State stays Running permanently, blocking diff stats panel at line 79."
+  artifacts:
+    - path: "src/AgentHub.Web/Components/Pages/SessionDetail.razor"
+      issue: "SSE loop Task.Run exits without final state refresh; lines 79 and 298 guard on stale Running state"
+  missing:
+    - "Add final GetSessionAsync + StateHasChanged after SSE ReadAllAsync loop completes"
+  debug_session: ".planning/debug/diff-stats-still-running.md"
 
 - truth: "CLI session diff displays diff stats for a worktree session"
   status: failed
   reason: "User reported: Session list shows session but session diff returns 'Error: Session ssh_40d6 not found.'"
   severity: major
   test: 6
-  artifacts: []
-  missing: []
+  root_cause: "session list truncates IDs to 8 chars (Program.cs:119,527) but diff endpoint (Program.cs:288) does exact == match. User copies truncated ID which doesn't match full ID in DB."
+  artifacts:
+    - path: "src/AgentHub.Cli/Program.cs"
+      issue: "Lines 119, 527 truncate session ID to 8 chars in list display"
+    - path: "src/AgentHub.Service/Program.cs"
+      issue: "Line 288 diff endpoint uses exact SessionId == match"
+  missing:
+    - "Add prefix matching (StartsWith) fallback when exact match fails on session lookup endpoints"
+  debug_session: ""
 
 - truth: "host set-repo sets default repo path and subsequent sessions work normally"
   status: failed
-  reason: "User reported: Command runs but after setting repo path, launching a session without worktree details gives 400 Bad Request. Design concern: hosts should operate across projects, repo should be selected per-session not defaulted per-host."
+  reason: "User reported: Command runs but launching session without worktree details gives 400 Bad Request."
   severity: major
   test: 8
-  artifacts: []
-  missing: []
+  root_cause: "SshBackend.CanHandle (lines 58-62) requires ExecutionMode==Ssh && AcceptRisk, but placement engine routes Auto mode to SSH hosts when --host is specified. Mismatch causes CanHandle to reject → 400."
+  artifacts:
+    - path: "src/AgentHub.Orchestration/Backends/SshBackend.cs"
+      issue: "CanHandle lines 58-62 requires ExecutionMode==Ssh && AcceptRisk"
+    - path: "src/AgentHub.Orchestration/Placement/SimplePlacementEngine.cs"
+      issue: "Lines 11-17 allows Auto+TargetHostId to select SSH nodes without AcceptRisk"
+  missing:
+    - "Relax CanHandle to accept Auto mode when placement already routed to SSH host"
+  debug_session: ""
 
 - truth: "CLI worktree flags start a session with worktree isolation"
   status: failed
   reason: "User reported: CLI flags exist and parse correctly but starting a worktree session returns 500 Internal Server Error."
   severity: blocker
   test: 9
-  artifacts: []
-  missing: []
+  root_cause: "Same as Test 3 root cause #2: WorktreeService.CreateWorktreeAsync silently swallows git failures. SSH exceptions are not InvalidOperationException so they fall through to generic 500 catch in Program.cs:221-225."
+  artifacts:
+    - path: "src/AgentHub.Orchestration/Worktree/WorktreeService.cs"
+      issue: "CreateWorktreeAsync ignores git command exit status"
+    - path: "src/AgentHub.Service/Program.cs"
+      issue: "Lines 221-225 generic catch returns bare 500 for non-InvalidOperationException"
+  missing:
+    - "Check git command output for errors in WorktreeService"
+    - "Wrap SSH exceptions as InvalidOperationException or add specific catch clauses"
+  debug_session: ".planning/debug/worktree-session-silent-fail.md"
