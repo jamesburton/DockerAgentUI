@@ -184,6 +184,9 @@ else
                                 _session = await Api.GetSessionAsync(SessionId, _cts.Token);
                             await InvokeAsync(StateHasChanged);
                         }
+                        // Stream ended — refresh session state so UI reflects final state
+                        _session = await Api.GetSessionAsync(SessionId, CancellationToken.None);
+                        await InvokeAsync(StateHasChanged);
                     }
                     catch (OperationCanceledException) { }
                 }, _cts.Token);
