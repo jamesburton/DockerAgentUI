@@ -65,13 +65,17 @@ public sealed class DashboardApiClient(HttpClient http)
         return (resp?.Items ?? [], resp?.TotalCount ?? 0);
     }
 
-    public async Task SendInputAsync(string sessionId, string text, CancellationToken ct = default)
+    public async Task<bool> SendInputAsync(string sessionId, string text, bool isFollowUp = false, CancellationToken ct = default)
     {
         var response = await http.PostAsJsonAsync(
             $"/api/sessions/{Uri.EscapeDataString(sessionId)}/input",
-            new SendInputRequest(text), s_json, ct);
+            new SendInputRequest(text, IsFollowUp: isFollowUp), s_json, ct);
         response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<SendInputResponse>(s_json, ct);
+        return result?.Delivered ?? false;
     }
+
+    internal sealed record SendInputResponse(bool Delivered);
 
     public async Task ResolveApprovalAsync(string approvalId, bool approved, CancellationToken ct = default)
     {

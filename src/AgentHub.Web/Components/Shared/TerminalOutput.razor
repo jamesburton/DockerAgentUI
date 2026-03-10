@@ -69,6 +69,8 @@
         SessionEventKind.StateChanged => "terminal-state",
         SessionEventKind.ApprovalRequest => "terminal-state",
         SessionEventKind.ApprovalResponse => "terminal-state",
+        SessionEventKind.SteeringInput => "terminal-steering",
+        SessionEventKind.SteeringDelivered => "terminal-info",
         _ => "terminal-info"
     };
 }

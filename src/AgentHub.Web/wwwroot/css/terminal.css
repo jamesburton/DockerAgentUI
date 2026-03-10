@@ -48,3 +48,10 @@
 .terminal-info {
     color: #569cd6;
 }
+
+.terminal-steering {
+    border-left: 3px solid #4fc3f7;
+    padding-left: 8px;
+    background: rgba(79, 195, 247, 0.05);
+    color: #4fc3f7;
+}
