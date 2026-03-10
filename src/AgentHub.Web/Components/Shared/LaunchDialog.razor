@@ -39,8 +39,8 @@
                          Color="Color.Warning" />
             <MudCheckBox T="bool" Value="_useWorktree" ValueChanged="OnWorktreeToggled"
                          Label="Git Worktree Isolation"
-                         Color="Color.Info"
-                         HelperText="Create a separate git worktree for this session to avoid conflicts with parallel agents" />
+                         Color="Color.Info" />
+            <MudText Typo="Typo.caption" Class="ml-8 mt-n2 mb-2" Style="color: var(--mud-palette-text-secondary);">Create a separate git worktree for this session to avoid conflicts with parallel agents</MudText>
             @if (_useWorktree)
             {
                 <MudTextField T="string" Label="Repository Path" @bind-Value="_repoPath"
@@ -49,8 +49,8 @@
                               HelperText="Absolute path to git repo on the remote host" />
                 <MudCheckBox T="bool" @bind-Value="_keepBranch"
                              Label="Keep branch after cleanup"
-                             Color="Color.Info" Class="ml-8"
-                             HelperText="Preserve the worktree branch for cherry-picking after session ends" />
+                             Color="Color.Info" Class="ml-8" />
+                <MudText Typo="Typo.caption" Class="ml-14 mt-n2 mb-2" Style="color: var(--mud-palette-text-secondary);">Preserve the worktree branch for cherry-picking after session ends</MudText>
             }
         </MudStack>
     </DialogContent>

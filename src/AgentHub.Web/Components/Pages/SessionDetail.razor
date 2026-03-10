@@ -75,7 +75,7 @@ else
     @if (_session.WorktreeBranch is not null)
     {
         <MudExpansionPanels Class="mt-4 mb-4" Elevation="1">
-            <MudExpansionPanel Text="Diff Stats" IsExpandedChanged="OnDiffPanelExpanded">
+            <MudExpansionPanel Text="Diff Stats" ExpandedChanged="OnDiffPanelExpanded">
                 @if (_session.State is SessionState.Running or SessionState.Pending)
                 {
                     <MudAlert Severity="Severity.Info" Class="my-2">Session still running -- diff stats available after completion.</MudAlert>
