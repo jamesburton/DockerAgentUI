@@ -199,13 +199,25 @@ public sealed class DashboardApiClientTests
     public async Task SendInputAsync_PostsToInputEndpoint()
     {
         var (client, handler) = CreateClient();
-        handler.Response = new HttpResponseMessage(HttpStatusCode.OK);
+        SetJsonResponse(handler, new { delivered = true });
 
-        await client.SendInputAsync("sess-1", "hello world");
+        var delivered = await client.SendInputAsync("sess-1", "hello world");
 
+        Assert.True(delivered);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Contains("sess-1", handler.LastRequest.RequestUri!.ToString());
         Assert.Contains("/input", handler.LastRequest.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task SendInputAsync_ReturnsFalseWhenNotDelivered()
+    {
+        var (client, handler) = CreateClient();
+        SetJsonResponse(handler, new { delivered = false });
+
+        var delivered = await client.SendInputAsync("sess-1", "hello world", isFollowUp: true);
+
+        Assert.False(delivered);
     }
 
     [Fact]

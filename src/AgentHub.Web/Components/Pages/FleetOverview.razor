@@ -140,6 +140,17 @@
                                     OnHostMetricsReceived(evt.Meta);
                                 }
                             }
+                            else if (evt.Kind == SessionEventKind.SteeringInput)
+                            {
+                                // Surface steering events in fleet-wide stream
+                                var idx = _sessions.FindIndex(s => s.SessionId == evt.SessionId);
+                                if (idx < 0)
+                                {
+                                    var newSession = await Api.GetSessionAsync(evt.SessionId);
+                                    if (newSession is not null) _sessions.Add(newSession);
+                                }
+                                StateHasChanged();
+                            }
                             else if (evt.Kind == SessionEventKind.SessionCompleted)
                             {
                                 // Update completed session status in-place

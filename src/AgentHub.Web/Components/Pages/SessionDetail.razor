@@ -72,25 +72,22 @@ else
 
     <TerminalOutput Events="_events" SessionId="@SessionId" />
 
-    @if (_session?.State == SessionState.Running)
-    {
-        <MudPaper Class="pa-2 mt-2" Style="position: sticky; bottom: 0; z-index: 10;" Elevation="4">
-            <MudStack Row AlignItems="AlignItems.Center">
-                <MudTextField @bind-Value="_inputText"
-                              Placeholder="Send input to session..."
-                              Variant="Variant.Outlined"
-                              Immediate="true"
-                              OnKeyDown="OnInputKeyDown"
-                              Disabled="_sending"
-                              Class="flex-grow-1" />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           OnClick="SendInput"
-                           Disabled="@(string.IsNullOrWhiteSpace(_inputText) || _sending)">
-                    Send
-                </MudButton>
-            </MudStack>
-        </MudPaper>
-    }
+    <MudPaper Class="pa-2 mt-2" Style="position: sticky; bottom: 0; z-index: 10;" Elevation="4">
+        <MudStack Row AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="_inputText"
+                          Placeholder="Send input to session..."
+                          Variant="Variant.Outlined"
+                          Immediate="true"
+                          OnKeyDown="OnInputKeyDown"
+                          Disabled="_sending"
+                          Class="flex-grow-1" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SendInput"
+                       Disabled="@(string.IsNullOrWhiteSpace(_inputText) || _sending)">
+                Send
+            </MudButton>
+        </MudStack>
+    </MudPaper>
 }
 
 @code {
@@ -103,6 +100,9 @@ else
     private readonly List<SessionEvent> _pendingApprovals = [];
     private string _inputText = "";
     private bool _sending;
+    private readonly Queue<DateTimeOffset> _recentInputs = new();
+    private const int RapidFireThreshold = 3;
+    private static readonly TimeSpan RapidFireWindow = TimeSpan.FromSeconds(10);
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,9 +206,21 @@ else
         _sending = true;
         try
         {
-            await Api.SendInputAsync(SessionId!, _inputText);
+            var delivered = await Api.SendInputAsync(SessionId!, _inputText, isFollowUp: true);
             _inputText = "";
-            Snackbar.Add("Sent", Severity.Success, c => c.VisibleStateDuration = 1000);
+
+            if (delivered)
+                Snackbar.Add("Steering delivered", Severity.Success, c => c.VisibleStateDuration = 1500);
+            else
+                Snackbar.Add("Warning: Delivery unconfirmed", Severity.Warning, c => c.VisibleStateDuration = 3000);
+
+            // Rapid-fire detection
+            var now = DateTimeOffset.UtcNow;
+            _recentInputs.Enqueue(now);
+            while (_recentInputs.Count > 0 && now - _recentInputs.Peek() > RapidFireWindow)
+                _recentInputs.Dequeue();
+            if (_recentInputs.Count >= RapidFireThreshold)
+                Snackbar.Add("Sending multiple commands rapidly -- agent may not process them in order", Severity.Warning, c => c.VisibleStateDuration = 3000);
         }
         catch (Exception ex)
         {
