@@ -25,7 +25,7 @@ Requirements for milestone v1.1 Multi-Agent & Interactive. Each maps to roadmap 
 - [x] **WKTREE-01**: System creates a git worktree on the remote host before launching an agent session
 - [x] **WKTREE-02**: System cleans up worktree and branch when session ends (stop or force-kill)
 - [x] **WKTREE-03**: Worktree branches are auto-named based on session ID and prompt summary
-- [ ] **WKTREE-04**: User can view git diff stats for a completed worktree session (merge-readiness)
+- [x] **WKTREE-04**: User can view git diff stats for a completed worktree session (merge-readiness)
 
 ### Multi-Agent Coordination
 
@@ -87,7 +87,7 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 | WKTREE-01 | Phase 9 | Complete |
 | WKTREE-02 | Phase 9 | Complete |
 | WKTREE-03 | Phase 9 | Complete |
-| WKTREE-04 | Phase 9 | Pending |
+| WKTREE-04 | Phase 9 | Complete |
 | COORD-01 | Phase 10 | Pending |
 | COORD-02 | Phase 10 | Pending |
 | COORD-03 | Phase 10 | Pending |
