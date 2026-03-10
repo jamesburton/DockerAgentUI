@@ -62,10 +62,12 @@ Plans:
   1. User can type a follow-up instruction in CLI or Blazor UI and it reaches the running agent session mid-task
   2. Follow-up instructions are visually distinct from the original prompt in both CLI and web dashboard
   3. Coordinator displays delivery confirmation after the host daemon acknowledges receipt of the steering command
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 08-01: TBD
+- [ ] 08-01-PLAN.md -- Steering contracts, protocol, backend pipeline, and delivery confirmation
+- [ ] 08-02-PLAN.md -- CLI steering event rendering, IsFollowUp flag, rapid-fire warning
+- [ ] 08-03-PLAN.md -- Web UI steering rendering, delivery snackbar, fleet-wide steering visibility
 
 ### Phase 9: Git Worktree Isolation
 **Goal**: Each agent session operates in its own git worktree so parallel agents on the same repo cannot conflict
@@ -111,6 +113,6 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 5. History API Contract Alignment | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 6. Client Wiring and Polish | v1.0 | 3/3 | Complete | 2026-03-09 |
 | 7. Infrastructure & Host Inventory | v1.1 | 3/3 | Complete | 2026-03-10 |
-| 8. Interactive Session Steering | v1.1 | 0/0 | Not started | - |
+| 8. Interactive Session Steering | v1.1 | 0/3 | Planning complete | - |
 | 9. Git Worktree Isolation | v1.1 | 0/0 | Not started | - |
 | 10. Multi-Agent Coordination | v1.1 | 0/0 | Not started | - |
