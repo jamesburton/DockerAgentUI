@@ -9,6 +9,7 @@ using AgentHub.Orchestration.Monitoring;
 using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
+using AgentHub.Orchestration.Worktree;
 using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -226,6 +227,78 @@ app.MapGet("/api/events", (
     return TypedResults.ServerSentEvents(
         events.SubscribeFleet(lastEventId, ct),
         eventType: "fleetEvent");
+});
+
+// GET /api/sessions/{sessionId}/diff - Get diff stats for a worktree session
+app.MapGet("/api/sessions/{sessionId}/diff", async (
+    string sessionId,
+    IUserContext user,
+    ISessionCoordinator coordinator,
+    WorktreeService worktreeService,
+    ISshHostConnectionFactory connectionFactory,
+    IHostRegistry hostRegistry,
+    IConfiguration configuration,
+    CancellationToken ct) =>
+{
+    var session = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
+    if (session is null) return Results.NotFound();
+    if (session.WorktreeBranch is null) return Results.BadRequest(new { error = "Session is not a worktree session" });
+
+    var host = await hostRegistry.GetAsync(session.Node!, ct);
+    if (host?.Address is null) return Results.BadRequest(new { error = "Host not reachable" });
+
+    var sshKeyPath = configuration["Ssh:PrivateKeyPath"]
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
+    var sshUsername = configuration["Ssh:Username"] ?? "agent-user";
+
+    var hostAddress = host.Address.Replace("ssh://", "");
+    await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
+    await connection.ConnectAsync(ct);
+
+    var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+    if (string.IsNullOrEmpty(repoRoot)) return Results.BadRequest(new { error = "Cannot determine repo root" });
+
+    var diff = await worktreeService.GetDiffStatsAsync(connection, repoRoot, session.WorktreeBranch, ct);
+    return Results.Ok(diff);
+});
+
+// POST /api/hosts/{hostId}/worktree-cleanup - Remove orphaned worktrees on a host
+app.MapPost("/api/hosts/{hostId}/worktree-cleanup", async (
+    string hostId,
+    WorktreeService worktreeService,
+    ISshHostConnectionFactory connectionFactory,
+    IHostRegistry hostRegistry,
+    ISessionCoordinator coordinator,
+    IUserContext user,
+    IConfiguration configuration,
+    CancellationToken ct) =>
+{
+    var host = await hostRegistry.GetAsync(hostId, ct);
+    if (host?.Address is null) return Results.NotFound();
+
+    var sshKeyPath = configuration["Ssh:PrivateKeyPath"]
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
+    var sshUsername = configuration["Ssh:Username"] ?? "agent-user";
+
+    var hostAddress = host.Address.Replace("ssh://", "");
+    await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
+    await connection.ConnectAsync(ct);
+
+    var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+    if (string.IsNullOrEmpty(repoRoot)) return Results.BadRequest(new { error = "Cannot determine repo root" });
+
+    // Get active session IDs for this host
+    var sessions = await coordinator.ListSessionsAsync(user.UserId, ct);
+    var activeIds = sessions
+        .Where(s => s.Node == hostId && s.State == SessionState.Running)
+        .Select(s => s.SessionId)
+        .ToList();
+
+    var orphans = await worktreeService.FindOrphanedWorktreesAsync(connection, repoRoot, activeIds, ct);
+    if (orphans.Count == 0) return Results.Ok(new { cleaned = 0, message = "No orphaned worktrees found" });
+
+    await worktreeService.CleanupOrphanedAsync(connection, repoRoot, orphans, ct);
+    return Results.Ok(new { cleaned = orphans.Count, paths = orphans });
 });
 
 app.Run();

@@ -6,6 +6,7 @@ using AgentHub.Cli.Output;
 using AgentHub.Cli.Commands;
 using AgentHub.Cli.Commands.Session;
 using AgentHub.Cli.Commands.Host;
+using AgentHub.Cli.Commands.Worktree;
 using AgentHub.Cli.Notifications;
 using AgentHub.Contracts;
 
@@ -54,6 +55,7 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     var hostOpt = new Option<string>("--host") { Description = "Target host ID for placement" };
     var detachOpt = new Option<bool>("-d", "--detach") { Description = "Run in background", DefaultValueFactory = _ => false };
     var ffOpt = new Option<bool>("--fire-and-forget") { Description = "Fire and forget mode", DefaultValueFactory = _ => false };
+    var keepBranchOpt = new Option<bool>("--keep-branch") { Description = "Preserve worktree branch after session ends (for cherry-picking)", DefaultValueFactory = _ => false };
 
     var cmd = new Command("start", "Start a new agent session");
     cmd.Add(agentArg);
@@ -61,6 +63,7 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     cmd.Add(hostOpt);
     cmd.Add(detachOpt);
     cmd.Add(ffOpt);
+    cmd.Add(keepBranchOpt);
 
     cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
     {
@@ -71,7 +74,8 @@ var sessionCommand = new Command("session", "Manage agent sessions");
             pr.GetValue(agentArg)!,
             new SessionRequirements(TargetHostId: pr.GetValue(hostOpt)),
             Prompt: pr.GetValue(promptArg),
-            IsFireAndForget: pr.GetValue(ffOpt));
+            IsFireAndForget: pr.GetValue(ffOpt),
+            KeepBranch: pr.GetValue(keepBranchOpt));
 
         var sessionId = await client.StartSessionAsync(req, ct);
         formatter.WriteSuccess($"Session {sessionId} started");
@@ -241,6 +245,55 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     });
 
     sessionCommand.Add(cmd);
+}
+
+// -- session diff --
+{
+    var idArg = new Argument<string>("sessionId") { Description = "Session ID to view diff for" };
+    var detailedOpt = new Option<bool>("--detailed") { Description = "Show full table with per-file stats", DefaultValueFactory = _ => false };
+
+    var cmd = new Command("diff", "View diff stats for a completed worktree session");
+    cmd.Add(idArg);
+    cmd.Add(detailedOpt);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var formatter = ResolveFormatter(pr);
+
+        return await SessionDiffCommand.ExecuteAsync(
+            pr.GetValue(idArg)!,
+            pr.GetValue(detailedOpt),
+            client, formatter, ct);
+    });
+
+    sessionCommand.Add(cmd);
+}
+
+// ============================================================
+// WORKTREE group
+// ============================================================
+var worktreeCommand = new Command("worktree", "Manage git worktrees");
+
+// -- worktree cleanup --
+{
+    var hostOpt = new Option<string>("--host") { Description = "Host ID to clean up orphaned worktrees on" };
+    hostOpt.Required = true;
+
+    var cmd = new Command("cleanup", "Remove orphaned worktrees from a host");
+    cmd.Add(hostOpt);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var formatter = ResolveFormatter(pr);
+
+        return await WorktreeCleanupCommand.ExecuteAsync(
+            pr.GetValue(hostOpt)!,
+            client, formatter, ct);
+    });
+
+    worktreeCommand.Add(cmd);
 }
 
 // ============================================================
@@ -456,6 +509,7 @@ var configCommand = new Command("config", "CLI configuration");
 // ============================================================
 rootCommand.Add(sessionCommand);
 rootCommand.Add(hostCommand);
+rootCommand.Add(worktreeCommand);
 rootCommand.Add(configCommand);
 
 // ============================================================

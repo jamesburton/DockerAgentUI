@@ -131,6 +131,18 @@ public sealed class AgentHubApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    // -- Worktree --
+
+    public async Task<HttpResponseMessage> GetSessionDiffRawAsync(string sessionId, CancellationToken ct = default)
+    {
+        return await _http.GetAsync($"/api/sessions/{Uri.EscapeDataString(sessionId)}/diff", ct);
+    }
+
+    public async Task<HttpResponseMessage> PostWorktreeCleanupRawAsync(string hostId, CancellationToken ct = default)
+    {
+        return await _http.PostAsync($"/api/hosts/{Uri.EscapeDataString(hostId)}/worktree-cleanup", null, ct);
+    }
+
     // -- Internal DTOs --
 
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);
