@@ -22,23 +22,27 @@ public interface ISshHostConnection : IAsyncDisposable
 public interface ISshHostConnectionFactory
 {
     ISshHostConnection Create(string host, string username, string privateKeyPath);
+    string? DaemonPath { get; set; }
 }
 
 /// <summary>
 /// Real SSH connection wrapper using SSH.NET with heartbeat and reconnection detection.
+/// Routes JSON commands through the host daemon script when configured.
 /// </summary>
 public sealed class SshHostConnection : ISshHostConnection
 {
     private readonly SshClient _client;
     private readonly Timer _heartbeat;
     private readonly ILogger? _logger;
+    private readonly string? _daemonPath;
     private volatile bool _connected;
 
     public bool IsConnected => _connected && _client.IsConnected;
 
-    public SshHostConnection(string host, string username, string privateKeyPath, ILogger? logger = null)
+    public SshHostConnection(string host, string username, string privateKeyPath, string? daemonPath = null, ILogger? logger = null)
     {
         _logger = logger;
+        _daemonPath = daemonPath;
         var keyFile = new PrivateKeyFile(privateKeyPath);
         var authMethod = new PrivateKeyAuthenticationMethod(username, keyFile);
         var connectionInfo = new ConnectionInfo(host, username, authMethod);
@@ -63,15 +67,15 @@ public sealed class SshHostConnection : ISshHostConnection
 
     public async Task<string> ExecuteCommandAsync(string commandJson, CancellationToken ct)
     {
-        var cmd = _client.CreateCommand(commandJson);
+        var remoteCommand = WrapCommand(commandJson);
+        var cmd = _client.CreateCommand(remoteCommand);
         return await Task.Run(() => cmd.Execute(), ct);
     }
 
     public async Task<(StreamReader stdout, StreamReader stderr)> StartDaemonSessionAsync(string commandJson, CancellationToken ct)
     {
-        // Use CreateCommand for long-running daemon session.
-        // The command is the daemon entry point that reads the start-session payload from its arguments.
-        var cmd = _client.CreateCommand(commandJson);
+        var remoteCommand = WrapCommand(commandJson);
+        var cmd = _client.CreateCommand(remoteCommand);
 
         // Begin execution asynchronously - the command will keep running
         await Task.Run(() => cmd.BeginExecute(), ct);
@@ -81,13 +85,31 @@ public sealed class SshHostConnection : ISshHostConnection
         return (stdout, stderr);
     }
 
+    /// <summary>
+    /// Wraps a JSON protocol command through the daemon script if configured.
+    /// Raw shell commands (git, metric collection) are sent directly.
+    /// Uses echo piping through stdin to avoid cmd.exe quoting issues on Windows SSH hosts.
+    /// </summary>
+    private string WrapCommand(string command)
+    {
+        if (string.IsNullOrEmpty(_daemonPath))
+            return command;
+
+        // Only wrap JSON protocol commands (start with '{'), pass raw shell commands through directly
+        if (!command.TrimStart().StartsWith('{'))
+            return command;
+
+        return $"echo {command} | powershell -NoProfile -ExecutionPolicy Bypass -File \"{_daemonPath}\"";
+    }
+
     private void SendHeartbeat(object? state)
     {
         if (!_connected || !_client.IsConnected) return;
         try
         {
             var ping = HostCommandProtocol.Serialize(HostCommandProtocol.CreatePing());
-            var cmd = _client.CreateCommand(ping);
+            var remoteCommand = WrapCommand(ping);
+            var cmd = _client.CreateCommand(remoteCommand);
             cmd.Execute();
         }
         catch (Exception ex)
@@ -113,9 +135,11 @@ public sealed class SshHostConnection : ISshHostConnection
 /// </summary>
 public sealed class SshHostConnectionFactory(ILoggerFactory? loggerFactory = null) : ISshHostConnectionFactory
 {
+    public string? DaemonPath { get; set; }
+
     public ISshHostConnection Create(string host, string username, string privateKeyPath)
     {
         var logger = loggerFactory?.CreateLogger<SshHostConnection>();
-        return new SshHostConnection(host, username, privateKeyPath, logger);
+        return new SshHostConnection(host, username, privateKeyPath, DaemonPath, logger);
     }
 }

@@ -93,6 +93,8 @@ public sealed class MockSshHostConnectionFactory : ISshHostConnectionFactory
     /// <summary>All connections created by this factory.</summary>
     public List<MockSshHostConnection> AllCreated { get; } = [];
 
+    public string? DaemonPath { get; set; }
+
     /// <summary>Enqueue a pre-configured mock connection.</summary>
     public void EnqueueConnection(MockSshHostConnection connection) => _connections.Enqueue(connection);
 

@@ -66,7 +66,12 @@ builder.Services.AddHostedService<HostMetricPollingService>();
 builder.Services.AddSingleton<HostInventoryPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HostInventoryPollingService>());
 
-builder.Services.AddSingleton<ISshHostConnectionFactory, SshHostConnectionFactory>();
+builder.Services.AddSingleton<ISshHostConnectionFactory>(sp =>
+{
+    var factory = new SshHostConnectionFactory(sp.GetService<ILoggerFactory>());
+    factory.DaemonPath = builder.Configuration["Ssh:DaemonPath"];
+    return factory;
+});
 builder.Services.AddSingleton<AgentHub.Orchestration.Worktree.WorktreeService>();
 
 builder.Services.AddSingleton<ISessionBackend, InMemoryBackend>();
