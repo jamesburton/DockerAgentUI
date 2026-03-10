@@ -94,7 +94,16 @@ public sealed class SshBackend : ISessionBackend
         // Create SSH connection
         var hostAddress = host.Address!.Replace("ssh://", "");
         var connection = _connectionFactory.Create(hostAddress, _sshUsername, _sshKeyPath);
-        await connection.ConnectAsync(ct);
+        try
+        {
+            await connection.ConnectAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await connection.DisposeAsync();
+            throw new InvalidOperationException(
+                $"Cannot connect to host {placement.NodeId} at {hostAddress}: {ex.Message}", ex);
+        }
 
         var sessionId = $"ssh_{Guid.NewGuid():N}";
 

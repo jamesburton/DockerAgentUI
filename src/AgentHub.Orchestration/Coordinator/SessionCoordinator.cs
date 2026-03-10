@@ -196,7 +196,8 @@ public sealed class SessionCoordinator(
             e.Node,
             System.Text.Json.JsonSerializer.Deserialize<SessionRequirements>(e.RequirementsJson) ?? new SessionRequirements(),
             e.WorktreePath,
-            e.RiskAcceptedBy
+            e.RiskAcceptedBy,
+            e.WorktreeBranch
         )).ToList();
 
         return (items, totalCount);

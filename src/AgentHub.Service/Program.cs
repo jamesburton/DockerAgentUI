@@ -178,10 +178,28 @@ app.MapGet("/api/sessions/{sessionId}/history", async (string sessionId, IUserCo
     return Results.Json(new { items, totalCount }, HistoryJson.Options);
 });
 
-app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
+app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, ILogger<Program> logger, CancellationToken ct) =>
 {
-    var sessionId = await coordinator.StartSessionAsync(user.UserId, req, events.EmitAsync, ct);
-    return Results.Created($"/api/sessions/{sessionId}", new { sessionId });
+    try
+    {
+        var sessionId = await coordinator.StartSessionAsync(user.UserId, req, events.EmitAsync, ct);
+        return Results.Created($"/api/sessions/{sessionId}", new { sessionId });
+    }
+    catch (InvalidOperationException ex)
+    {
+        logger.LogWarning(ex, "Session start rejected: {Message}", ex.Message);
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (System.Net.Sockets.SocketException ex)
+    {
+        logger.LogError(ex, "Network error starting session: {Message}", ex.Message);
+        return Results.Json(new { error = $"Cannot reach host: {ex.Message}" }, statusCode: 502);
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException)
+    {
+        logger.LogError(ex, "Unexpected error starting session: {Message}", ex.Message);
+        return Results.Json(new { error = $"Session start failed: {ex.Message}" }, statusCode: 500);
+    }
 });
 
 app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInputRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
