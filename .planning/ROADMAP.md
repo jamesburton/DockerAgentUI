@@ -31,7 +31,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Enable interactive agent steering, multi-agent coordination across machines, host inventory discovery, and git worktree isolation for parallel sessions.
 
-- [ ] **Phase 7: Infrastructure & Host Inventory** - Schema migrations, metric cache, and SSH-based host tool discovery
+- [x] **Phase 7: Infrastructure & Host Inventory** - Schema migrations, metric cache, and SSH-based host tool discovery (completed 2026-03-10)
 - [ ] **Phase 8: Interactive Session Steering** - Send follow-up instructions to running agents with delivery confirmation
 - [ ] **Phase 9: Git Worktree Isolation** - Per-session worktree creation, cleanup, and diff visibility
 - [ ] **Phase 10: Multi-Agent Coordination** - Sub-agent spawning, parent-child tracking, and resource-aware placement
@@ -50,9 +50,9 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Schema migration, HostMetricCache, contract types, agents.json config
-- [ ] 07-02-PLAN.md -- HostInventoryPollingService with SSH probing, API endpoints, cache wiring
-- [ ] 07-03-PLAN.md -- Web dashboard expandable host cards and CLI inventory columns
+- [x] 07-01-PLAN.md -- Schema migration, HostMetricCache, contract types, agents.json config
+- [x] 07-02-PLAN.md -- HostInventoryPollingService with SSH probing, API endpoints, cache wiring
+- [x] 07-03-PLAN.md -- Web dashboard expandable host cards and CLI inventory columns
 
 ### Phase 8: Interactive Session Steering
 **Goal**: Operators can send follow-up instructions to a running agent session and know the command was delivered
@@ -110,7 +110,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 4. Web Dashboard | v1.0 | 3/3 | Complete | 2026-03-09 |
 | 5. History API Contract Alignment | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 6. Client Wiring and Polish | v1.0 | 3/3 | Complete | 2026-03-09 |
-| 7. Infrastructure & Host Inventory | 2/3 | In Progress|  | - |
+| 7. Infrastructure & Host Inventory | v1.1 | 3/3 | Complete | 2026-03-10 |
 | 8. Interactive Session Steering | v1.1 | 0/0 | Not started | - |
 | 9. Git Worktree Isolation | v1.1 | 0/0 | Not started | - |
 | 10. Multi-Agent Coordination | v1.1 | 0/0 | Not started | - |
