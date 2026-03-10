@@ -66,6 +66,7 @@ builder.Services.AddSingleton<HostInventoryPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HostInventoryPollingService>());
 
 builder.Services.AddSingleton<ISshHostConnectionFactory, SshHostConnectionFactory>();
+builder.Services.AddSingleton<AgentHub.Orchestration.Worktree.WorktreeService>();
 
 builder.Services.AddSingleton<ISessionBackend, InMemoryBackend>();
 builder.Services.AddSingleton<ISessionBackend, SshBackend>();

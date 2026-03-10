@@ -44,7 +44,8 @@ public sealed record StartSessionRequest(
     string? RequestedSkillProfile = null,
     string? Reason = null,
     string? Prompt = null,
-    bool IsFireAndForget = false
+    bool IsFireAndForget = false,
+    bool KeepBranch = false
 );
 
 public sealed record SessionSummary(
@@ -56,7 +57,8 @@ public sealed record SessionSummary(
     string? Node,
     SessionRequirements Requirements,
     string? WorktreePath = null,
-    string? RiskAcceptedBy = null
+    string? RiskAcceptedBy = null,
+    string? WorktreeBranch = null
 );
 
 public sealed record SendInputRequest(
@@ -169,3 +171,15 @@ public sealed record WorktreeDescriptor(
     bool Shallow,
     bool Sparse,
     string[]? SparsePaths = null);
+
+public sealed record DiffStats(
+    List<FileDiffStat> Files,
+    int TotalInsertions,
+    int TotalDeletions,
+    string Summary);
+
+public sealed record FileDiffStat(
+    string Path,
+    string Status,
+    int Insertions,
+    int Deletions);

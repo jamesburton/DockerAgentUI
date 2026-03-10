@@ -26,7 +26,8 @@ public static class EntityMappers
             Node: entity.Node,
             Requirements: requirements,
             WorktreePath: entity.WorktreePath,
-            RiskAcceptedBy: entity.RiskAcceptedBy);
+            RiskAcceptedBy: entity.RiskAcceptedBy,
+            WorktreeBranch: entity.WorktreeBranch);
     }
 
     public static SessionEntity ToEntity(this SessionSummary dto, string? agentType = null)
@@ -42,7 +43,8 @@ public static class EntityMappers
             AgentType = agentType,
             RequirementsJson = JsonSerializer.Serialize(dto.Requirements, JsonOpts),
             WorktreePath = dto.WorktreePath,
-            RiskAcceptedBy = dto.RiskAcceptedBy
+            RiskAcceptedBy = dto.RiskAcceptedBy,
+            WorktreeBranch = dto.WorktreeBranch
         };
     }
 

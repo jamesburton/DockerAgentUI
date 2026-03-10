@@ -28,6 +28,10 @@ public class SessionEntity
     public string? ParentSessionId { get; set; }
     public string? DispatchId { get; set; }
 
+    // Phase 9 additions
+    public string? WorktreeBranch { get; set; }
+    public bool KeepBranch { get; set; }
+
     public List<SessionEventEntity> Events { get; set; } = [];
     public List<ApprovalEntity> Approvals { get; set; } = [];
 }
