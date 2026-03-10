@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Agent & Interactive
 status: in_progress
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-10T09:38:47Z"
-last_activity: 2026-03-10 -- Completed plan 09-01 core worktree engine
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-10T14:30:00Z"
+last_activity: 2026-03-10 -- Completed plan 09-02 worktree UI surfaces + bug fixes
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 ## Current Position
 
-Phase: 9 of 10 (Git Worktree Isolation) -- IN PROGRESS
-Plan: 1 of 2 complete
-Status: Plan 09-01 complete -- core worktree engine built
-Last activity: 2026-03-10 -- Completed plan 09-01 core worktree engine
+Phase: 9 of 10 (Git Worktree Isolation) -- ALL PLANS COMPLETE
+Plan: 2 of 2 complete
+Status: Plan 09-02 complete -- worktree UI surfaces + repo path infrastructure
+Last activity: 2026-03-10 -- Completed plan 09-02 worktree UI surfaces + bug fixes
 
-Progress: [████████░░] 88%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -49,9 +49,10 @@ Progress: [████████░░] 88%
 | Phase 08 P02 | 2min | 1 task | 2 files |
 | Phase 08 P03 | 4min | 2 tasks | 6 files |
 | Phase 09 P01 | 8min | 2 tasks | 13 files |
+| Phase 09 P02 | 15min | 3 tasks | 15 files |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (8min), 08-02 (2min), 08-03 (4min), 09-01 (8min)
+- Last 5 plans: 08-02 (2min), 08-03 (4min), 09-01 (8min), 09-02 (15min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -82,6 +83,10 @@ Full decision log in PROJECT.md Key Decisions table.
 - 09-01: Shell escaping via single-quote wrapping for SSH commands
 - 09-01: Force-kill keeps worktree by default; only cleans if CleanupPolicy is explicitly "cleanup"
 - 09-01: Generated regex for BranchNameGenerator slug sanitization
+- 09-02: WorktreeId belongs on StartSessionRequest top-level, not SessionRequirements
+- 09-02: Diff endpoint queries DB directly to avoid backend iteration issues
+- 09-02: Repo path fallback chain: request.RepoPath > host.DefaultRepoPath > git rev-parse
+- 09-02: PATCH /api/hosts/{id} for host config updates
 
 ### Pending Todos
 
@@ -95,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T09:38:47Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-git-worktree-isolation/09-01-SUMMARY.md
+Last session: 2026-03-10T14:30:00Z
+Stopped at: Completed 09-02-PLAN.md — all phase 9 plans done, awaiting verification
+Resume file: .planning/phases/09-git-worktree-isolation/09-02-SUMMARY.md
