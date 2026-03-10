@@ -160,7 +160,7 @@ public sealed class SshBackend : ISessionBackend
         return sessionId;
     }
 
-    public async Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
+    public async Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
     {
         if (!_connections.TryGetValue(sessionId, out var connection))
             throw new InvalidOperationException($"No active SSH connection for session {sessionId}.");
@@ -168,9 +168,19 @@ public sealed class SshBackend : ISessionBackend
         if (!connection.IsConnected)
             throw new InvalidOperationException($"SSH connection for session {sessionId} is disconnected.");
 
-        // Send input as a command payload over the SSH connection
-        var inputJson = JsonSerializer.Serialize(new { input = request.Input, sessionId });
-        await connection.ExecuteCommandAsync(inputJson, ct);
+        try
+        {
+            var command = HostCommandProtocol.CreateSendInput(sessionId, request.Input, request.IsFollowUp);
+            var commandJson = HostCommandProtocol.Serialize(command);
+            var responseJson = await connection.ExecuteCommandAsync(commandJson, ct);
+            var response = HostCommandProtocol.DeserializeResponse(responseJson);
+            return response.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to deliver input to session {SessionId}", sessionId);
+            return false;
+        }
     }
 
     public async Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)

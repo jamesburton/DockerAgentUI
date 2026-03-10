@@ -19,7 +19,7 @@ public sealed class NomadBackend : ISessionBackend
     public Task<string> StartAsync(string ownerUserId, StartSessionRequest request, PlacementDecision placement, Func<SessionEvent, Task> emit, CancellationToken ct)
         => throw new NotImplementedException("Wire Nomad HTTP API here.");
 
-    public Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
+    public Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
         => throw new NotImplementedException();
 
     public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)

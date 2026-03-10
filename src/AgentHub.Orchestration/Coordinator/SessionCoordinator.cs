@@ -57,7 +57,7 @@ public sealed class SessionCoordinator(
         return await selectedBackend.StartAsync(userId, resolvedRequest, placementDecision, emit, ct);
     }
 
-    public async Task SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
+    public async Task<bool> SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
     {
         var session = await GetSessionAsync(sessionId, userId, ct) ?? throw new InvalidOperationException("Session not found.");
         var skill = string.IsNullOrWhiteSpace(request.SkillId) ? null : skills.TryGet(request.SkillId!);
@@ -121,7 +121,8 @@ public sealed class SessionCoordinator(
                 ["risk"] = decision.Risk.ToString()
             }));
 
-        await backend.SendInputAsync(sessionId, request with { Input = decision.NormalizedInput }, ct);
+        var delivered = await backend.SendInputAsync(sessionId, request with { Input = decision.NormalizedInput }, ct);
+        return delivered;
     }
 
     public async Task StopSessionAsync(string userId, string sessionId, CancellationToken ct)

@@ -184,8 +184,8 @@ app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, 
 
 app.MapPost("/api/sessions/{sessionId}/input", async (string sessionId, SendInputRequest req, IUserContext user, ISessionCoordinator coordinator, DurableEventService events, CancellationToken ct) =>
 {
-    await coordinator.SendInputAsync(user.UserId, sessionId, req, events.EmitAsync, ct);
-    return Results.Accepted();
+    var delivered = await coordinator.SendInputAsync(user.UserId, sessionId, req, events.EmitAsync, ct);
+    return Results.Ok(new { delivered });
 });
 
 // Graceful or force stop via DELETE

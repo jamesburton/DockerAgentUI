@@ -211,10 +211,10 @@ internal sealed class ApprovalTestBackend(List<string> calls, bool acceptRisk = 
         return Task.FromResult(id);
     }
 
-    public Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
+    public Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct)
     {
         calls.Add("SendInput");
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct) => Task.CompletedTask;

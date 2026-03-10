@@ -33,6 +33,21 @@ public static class HostCommandProtocol
     }
 
     /// <summary>
+    /// Create a send-input command for delivering follow-up instructions to a running session.
+    /// </summary>
+    public static HostCommand CreateSendInput(string sessionId, string input, bool isFollowUp = false)
+    {
+        var payload = new SendInputPayload { Input = input, IsFollowUp = isFollowUp };
+        var payloadElement = JsonSerializer.SerializeToElement(payload, s_options);
+        return new HostCommand
+        {
+            Command = HostCommand.SendInput,
+            SessionId = sessionId,
+            Payload = payloadElement
+        };
+    }
+
+    /// <summary>
     /// Create a stop-session command.
     /// </summary>
     public static HostCommand CreateStopSession(string sessionId)

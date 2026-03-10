@@ -239,7 +239,7 @@ file sealed class TrackingBackend : ISessionBackend
         return Task.FromResult(id);
     }
 
-    public Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct) => Task.CompletedTask;
+    public Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct) => Task.FromResult(true);
 
     public Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)
     {

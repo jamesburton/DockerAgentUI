@@ -35,7 +35,7 @@ public interface ISessionBackend
     bool CanHandle(SessionRequirements requirements, NodeCapability node);
     Task<IReadOnlyList<NodeCapability>> GetInventoryAsync(CancellationToken ct);
     Task<string> StartAsync(string ownerUserId, StartSessionRequest request, PlacementDecision placement, Func<SessionEvent, Task> emit, CancellationToken ct);
-    Task SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct);
+    Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct);
     Task StopAsync(string sessionId, bool forceKill, CancellationToken ct);
     Task<SessionSummary?> GetAsync(string sessionId, CancellationToken ct);
     Task<IReadOnlyList<SessionSummary>> ListAsync(string ownerUserId, CancellationToken ct);
@@ -82,7 +82,7 @@ public interface ISessionCoordinator
     Task<IReadOnlyList<SessionSummary>> ListSessionsAsync(string userId, CancellationToken ct);
     Task<SessionSummary?> GetSessionAsync(string sessionId, string userId, CancellationToken ct);
     Task<string> StartSessionAsync(string userId, StartSessionRequest request, Func<SessionEvent, Task> emit, CancellationToken ct);
-    Task SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct);
+    Task<bool> SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct);
     Task StopSessionAsync(string userId, string sessionId, CancellationToken ct);
     Task StopSessionAsync(string userId, string sessionId, bool forceKill, CancellationToken ct);
     Task<(IReadOnlyList<SessionSummary> Items, int TotalCount)> GetSessionHistoryAsync(string userId, int skip, int take, string? stateFilter, CancellationToken ct);

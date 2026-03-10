@@ -64,7 +64,8 @@ public sealed record SendInputRequest(
     bool IsBinary = false,
     string? SkillId = null,
     Dictionary<string, string>? Arguments = null,
-    bool RequiresElevation = false);
+    bool RequiresElevation = false,
+    bool IsFollowUp = false);
 
 public enum SessionEventKind
 {
@@ -84,7 +85,9 @@ public enum SessionEventKind
     SessionCompleted,
     CleanupStarted,
     CleanupCompleted,
-    HostMetrics
+    HostMetrics,
+    SteeringInput,
+    SteeringDelivered
 }
 
 public sealed record SessionEvent(

@@ -40,6 +40,9 @@ public sealed record HostCommand
 
     /// <summary>Well-known command: respond to an approval request.</summary>
     public const string ApprovalResponse = "approval-response";
+
+    /// <summary>Well-known command: send follow-up input to a running session.</summary>
+    public const string SendInput = "send-input";
 }
 
 /// <summary>
@@ -103,6 +106,18 @@ public sealed record HostCommandResponse
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Data { get; init; }
+}
+
+/// <summary>
+/// Payload for the send-input command.
+/// </summary>
+public sealed record SendInputPayload
+{
+    [JsonPropertyName("input")]
+    public string Input { get; init; } = "";
+
+    [JsonPropertyName("isFollowUp")]
+    public bool IsFollowUp { get; init; }
 }
 
 /// <summary>
