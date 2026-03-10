@@ -78,10 +78,11 @@ Plans:
   2. Worktree and its branch are automatically cleaned up when the session ends (normal stop or force-kill)
   3. Worktree branches are named based on session ID and prompt summary so operators can identify them in git
   4. User can view git diff stats for a completed worktree session to assess merge-readiness
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md -- WorktreeService, BranchNameGenerator, DiffStatsParser, SshBackend lifecycle integration
+- [ ] 09-02-PLAN.md -- Diff stats API + CLI commands + Web UI diff panel and launch toggle
 
 ### Phase 10: Multi-Agent Coordination
 **Goal**: Operators can dispatch work across multiple machines with automatic placement and parent-child session tracking
@@ -114,5 +115,5 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 6. Client Wiring and Polish | v1.0 | 3/3 | Complete | 2026-03-09 |
 | 7. Infrastructure & Host Inventory | v1.1 | 3/3 | Complete | 2026-03-10 |
 | 8. Interactive Session Steering | v1.1 | 0/3 | Planning complete | - |
-| 9. Git Worktree Isolation | v1.1 | 0/0 | Not started | - |
+| 9. Git Worktree Isolation | v1.1 | 0/2 | Planning complete | - |
 | 10. Multi-Agent Coordination | v1.1 | 0/0 | Not started | - |
