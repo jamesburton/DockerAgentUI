@@ -143,6 +143,18 @@ public sealed class AgentHubApiClient
         return await _http.PostAsync($"/api/hosts/{Uri.EscapeDataString(hostId)}/worktree-cleanup", null, ct);
     }
 
+    public async Task PatchHostAsync(string hostId, string defaultRepoPath, CancellationToken ct = default)
+    {
+        var body = new { defaultRepoPath };
+        var request = new HttpRequestMessage(HttpMethod.Patch,
+            $"/api/hosts/{Uri.EscapeDataString(hostId)}")
+        {
+            Content = JsonContent.Create(body, options: s_json)
+        };
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
     // -- Internal DTOs --
 
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);

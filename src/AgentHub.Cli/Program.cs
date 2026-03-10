@@ -56,6 +56,8 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     var detachOpt = new Option<bool>("-d", "--detach") { Description = "Run in background", DefaultValueFactory = _ => false };
     var ffOpt = new Option<bool>("--fire-and-forget") { Description = "Fire and forget mode", DefaultValueFactory = _ => false };
     var keepBranchOpt = new Option<bool>("--keep-branch") { Description = "Preserve worktree branch after session ends (for cherry-picking)", DefaultValueFactory = _ => false };
+    var worktreeOpt = new Option<bool>("--worktree") { Description = "Enable git worktree isolation for this session", DefaultValueFactory = _ => false };
+    var repoPathOpt = new Option<string?>("--repo-path") { Description = "Absolute path to git repo on remote host (for worktree)" };
 
     var cmd = new Command("start", "Start a new agent session");
     cmd.Add(agentArg);
@@ -64,15 +66,20 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     cmd.Add(detachOpt);
     cmd.Add(ffOpt);
     cmd.Add(keepBranchOpt);
+    cmd.Add(worktreeOpt);
+    cmd.Add(repoPathOpt);
 
     cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
     {
         var client = ResolveClient(pr);
         var formatter = ResolveFormatter(pr);
+        var useWorktree = pr.GetValue(worktreeOpt);
 
         var req = new StartSessionRequest(
             pr.GetValue(agentArg)!,
             new SessionRequirements(TargetHostId: pr.GetValue(hostOpt)),
+            WorktreeId: useWorktree ? Guid.NewGuid().ToString("N") : null,
+            RepoPath: pr.GetValue(repoPathOpt),
             Prompt: pr.GetValue(promptArg),
             IsFireAndForget: pr.GetValue(ffOpt),
             KeepBranch: pr.GetValue(keepBranchOpt));
@@ -367,6 +374,33 @@ var hostCommand = new Command("host", "Manage fleet hosts");
         },
         "Name", "OS", "CPU%", "Memory", "Sessions");
 
+        return 0;
+    });
+
+    hostCommand.Add(cmd);
+}
+
+// -- host set-repo --
+{
+    var hostIdArg = new Argument<string>("hostId") { Description = "Host ID" };
+    var repoPathArg = new Argument<string>("repoPath") { Description = "Default git repo path on host (use \"\" to clear)" };
+
+    var cmd = new Command("set-repo", "Set the default git repository path for a host");
+    cmd.Add(hostIdArg);
+    cmd.Add(repoPathArg);
+
+    cmd.SetAction(async (ParseResult pr, CancellationToken ct) =>
+    {
+        var client = ResolveClient(pr);
+        var formatter = ResolveFormatter(pr);
+        var hostId = pr.GetValue(hostIdArg)!;
+        var repoPath = pr.GetValue(repoPathArg)!;
+
+        await client.PatchHostAsync(hostId, repoPath, ct);
+        if (string.IsNullOrWhiteSpace(repoPath))
+            formatter.WriteSuccess($"Cleared default repo path for host '{hostId}'");
+        else
+            formatter.WriteSuccess($"Set default repo path for host '{hostId}' to '{repoPath}'");
         return 0;
     });
 

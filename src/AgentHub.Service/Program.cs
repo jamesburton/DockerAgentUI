@@ -120,6 +120,24 @@ app.MapPost("/api/hosts/refresh-inventory", async (
     return Results.Accepted();
 });
 
+// PATCH /api/hosts/{hostId} - Update host configuration (e.g. default repo path)
+app.MapPatch("/api/hosts/{hostId}", async (
+    string hostId,
+    HostPatchRequest patch,
+    IDbContextFactory<AgentHubDbContext> dbFactory,
+    CancellationToken ct) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    var host = await db.Hosts.FindAsync([hostId], ct);
+    if (host is null) return Results.NotFound();
+
+    if (patch.DefaultRepoPath is not null)
+        host.DefaultRepoPath = string.IsNullOrWhiteSpace(patch.DefaultRepoPath) ? null : patch.DefaultRepoPath.Trim();
+
+    await db.SaveChangesAsync(ct);
+    return Results.Ok(host.ToDto());
+});
+
 app.MapGet("/api/skills", (ISkillRegistry skills)
     => Results.Ok(skills.GetAll()));
 
@@ -260,14 +278,18 @@ app.MapGet("/api/sessions/{sessionId}/diff", async (
     WorktreeService worktreeService,
     ISshHostConnectionFactory connectionFactory,
     IHostRegistry hostRegistry,
+    IDbContextFactory<AgentHubDbContext> dbFactory,
     IConfiguration configuration,
     CancellationToken ct) =>
 {
-    var session = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
-    if (session is null) return Results.NotFound();
-    if (session.WorktreeBranch is null) return Results.BadRequest(new { error = "Session is not a worktree session" });
+    // Look up session from DB directly (coordinator.GetSessionAsync iterates backends
+    // which may miss sessions if the backend service was restarted)
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    var entity = await db.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId && s.OwnerUserId == user.UserId, ct);
+    if (entity is null) return Results.NotFound(new { error = $"Session '{sessionId}' not found" });
+    if (entity.WorktreeBranch is null) return Results.BadRequest(new { error = "Session is not a worktree session" });
 
-    var host = await hostRegistry.GetAsync(session.Node!, ct);
+    var host = await hostRegistry.GetAsync(entity.Node!, ct);
     if (host?.Address is null) return Results.BadRequest(new { error = "Host not reachable" });
 
     var sshKeyPath = configuration["Ssh:PrivateKeyPath"]
@@ -278,10 +300,14 @@ app.MapGet("/api/sessions/{sessionId}/diff", async (
     await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
     await connection.ConnectAsync(ct);
 
-    var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
-    if (string.IsNullOrEmpty(repoRoot)) return Results.BadRequest(new { error = "Cannot determine repo root" });
+    // Use stored repo path, fall back to host default, then git rev-parse
+    var repoRoot = entity.RepoPath ?? host.DefaultRepoPath;
+    if (string.IsNullOrEmpty(repoRoot))
+        repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+    if (string.IsNullOrEmpty(repoRoot))
+        return Results.BadRequest(new { error = "Cannot determine repo root. Set a default repo path on the host." });
 
-    var diff = await worktreeService.GetDiffStatsAsync(connection, repoRoot, session.WorktreeBranch, ct);
+    var diff = await worktreeService.GetDiffStatsAsync(connection, repoRoot, entity.WorktreeBranch, ct);
     return Results.Ok(diff);
 });
 
@@ -307,8 +333,12 @@ app.MapPost("/api/hosts/{hostId}/worktree-cleanup", async (
     await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
     await connection.ConnectAsync(ct);
 
-    var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
-    if (string.IsNullOrEmpty(repoRoot)) return Results.BadRequest(new { error = "Cannot determine repo root" });
+    // Use host default repo path, fall back to git rev-parse
+    var repoRoot = host.DefaultRepoPath;
+    if (string.IsNullOrEmpty(repoRoot))
+        repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+    if (string.IsNullOrEmpty(repoRoot))
+        return Results.BadRequest(new { error = "Cannot determine repo root. Set a default repo path on the host." });
 
     // Get active session IDs for this host
     var sessions = await coordinator.ListSessionsAsync(user.UserId, ct);
@@ -352,3 +382,8 @@ public sealed class DevUserContext : IUserContext
 /// Request body for approval resolution endpoint.
 /// </summary>
 public sealed record ApprovalResolveRequest(bool Approved, string? ResolvedBy = null);
+
+/// <summary>
+/// Request body for host configuration updates (PATCH /api/hosts/{hostId}).
+/// </summary>
+public sealed record HostPatchRequest(string? DefaultRepoPath = null);

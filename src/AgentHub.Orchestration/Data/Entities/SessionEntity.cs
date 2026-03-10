@@ -31,6 +31,7 @@ public class SessionEntity
     // Phase 9 additions
     public string? WorktreeBranch { get; set; }
     public bool KeepBranch { get; set; }
+    public string? RepoPath { get; set; }
 
     public List<SessionEventEntity> Events { get; set; } = [];
     public List<ApprovalEntity> Approvals { get; set; } = [];

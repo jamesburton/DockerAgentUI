@@ -43,6 +43,10 @@
                          HelperText="Create a separate git worktree for this session to avoid conflicts with parallel agents" />
             @if (_useWorktree)
             {
+                <MudTextField T="string" Label="Repository Path" @bind-Value="_repoPath"
+                              Variant="Variant.Outlined" Class="ml-8"
+                              Placeholder="e.g. /home/user/myrepo (leave blank for host default)"
+                              HelperText="Absolute path to git repo on the remote host" />
                 <MudCheckBox T="bool" @bind-Value="_keepBranch"
                              Label="Keep branch after cleanup"
                              Color="Color.Info" Class="ml-8"
@@ -74,6 +78,7 @@
     private bool _acceptRisk;
     private bool _useWorktree;
     private bool _keepBranch;
+    private string _repoPath = string.Empty;
     private bool _launching;
 
     protected override async Task OnInitializedAsync()
@@ -93,7 +98,11 @@
     private void OnWorktreeToggled(bool value)
     {
         _useWorktree = value;
-        if (!value) _keepBranch = false;
+        if (!value)
+        {
+            _keepBranch = false;
+            _repoPath = string.Empty;
+        }
     }
 
     private async Task Launch()
@@ -112,9 +121,10 @@
                 Requirements: new SessionRequirements(
                     ExecutionMode: ExecutionMode.Ssh,
                     AcceptRisk: _acceptRisk,
-                    TargetHostId: string.IsNullOrEmpty(_targetHostId) ? null : _targetHostId,
-                    WorktreeId: _useWorktree ? Guid.NewGuid().ToString("N") : null
+                    TargetHostId: string.IsNullOrEmpty(_targetHostId) ? null : _targetHostId
                 ),
+                WorktreeId: _useWorktree ? Guid.NewGuid().ToString("N") : null,
+                RepoPath: _useWorktree && !string.IsNullOrWhiteSpace(_repoPath) ? _repoPath.Trim() : null,
                 Prompt: string.IsNullOrWhiteSpace(_prompt) ? null : _prompt,
                 IsFireAndForget: _fireAndForget,
                 KeepBranch: _useWorktree && _keepBranch

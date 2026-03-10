@@ -17,4 +17,5 @@ public class HostEntity
     public long? MemTotalMb { get; set; }
     public DateTimeOffset? MetricsUpdatedUtc { get; set; }
     public string? InventoryJson { get; set; }
+    public string? DefaultRepoPath { get; set; }
 }

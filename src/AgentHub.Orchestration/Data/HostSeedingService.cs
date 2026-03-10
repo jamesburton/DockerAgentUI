@@ -57,6 +57,7 @@ public sealed class HostSeedingService(
                         ? JsonSerializer.Serialize(host.Labels, JsonOpts)
                         : null;
                     existing.Address = host.Address;
+                    existing.DefaultRepoPath = host.DefaultRepoPath;
                     // Keep existing LastSeenUtc and Status (runtime state)
                     logger.LogInformation("Updating host config: {HostId} ({DisplayName})", host.HostId, host.DisplayName);
                 }

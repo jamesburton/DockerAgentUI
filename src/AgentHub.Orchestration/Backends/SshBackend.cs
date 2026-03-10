@@ -111,14 +111,23 @@ public sealed class SshBackend : ISessionBackend
         string? worktreePath = null;
         string? worktreeBranch = null;
 
+        // Resolve repo path: explicit request > host default > git rev-parse
+        string? repoRoot = request.RepoPath;
+        if (string.IsNullOrEmpty(repoRoot))
+            repoRoot = host.DefaultRepoPath;
+
         if (!string.IsNullOrEmpty(request.WorktreeId))
         {
-            worktreeBranch = BranchNameGenerator.Generate(sessionId, request.Prompt);
-            var repoRootCmd = "git rev-parse --show-toplevel 2>/dev/null";
-            var repoRoot = (await connection.ExecuteCommandAsync(repoRootCmd, ct)).Trim();
             if (string.IsNullOrEmpty(repoRoot))
-                throw new InvalidOperationException("Could not determine git repo root on remote host.");
+            {
+                var repoRootCmd = "git rev-parse --show-toplevel 2>/dev/null";
+                repoRoot = (await connection.ExecuteCommandAsync(repoRootCmd, ct)).Trim();
+            }
+            if (string.IsNullOrEmpty(repoRoot))
+                throw new InvalidOperationException(
+                    "Could not determine git repo root. Set a default repo path on the host or provide one in the request.");
 
+            worktreeBranch = BranchNameGenerator.Generate(sessionId, request.Prompt);
             var wtPath = $"{repoRoot}/.worktrees/{sessionId}";
             worktreePath = await _worktreeService.CreateWorktreeAsync(
                 connection, repoRoot, wtPath, worktreeBranch, ct);
@@ -165,6 +174,7 @@ public sealed class SshBackend : ISessionBackend
             WorktreePath = worktreePath ?? $"/sessions/{sessionId}",
             WorktreeBranch = worktreeBranch,
             KeepBranch = request.KeepBranch,
+            RepoPath = repoRoot,
             RiskAcceptedBy = ownerUserId,
             IsFireAndForget = request.IsFireAndForget,
             Prompt = request.Prompt ?? request.Reason,
@@ -321,7 +331,9 @@ public sealed class SshBackend : ISessionBackend
 
         try
         {
-            var repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
+            var repoRoot = session.RepoPath;
+            if (string.IsNullOrEmpty(repoRoot))
+                repoRoot = (await connection.ExecuteCommandAsync("git rev-parse --show-toplevel 2>/dev/null", ct)).Trim();
             if (!string.IsNullOrEmpty(repoRoot))
             {
                 await _worktreeService.CleanupWorktreeAsync(

@@ -17,6 +17,7 @@
     "enabled": true,
     "allowSsh": true,
     "labels": { "tier": "dev", "region": "local" },
-    "address": "ssh://localhost"
+    "address": "ssh://localhost",
+    "defaultRepoPath": null
   }
 ]

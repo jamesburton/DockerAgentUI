@@ -102,7 +102,8 @@ public static class EntityMappers
             CpuPercent: entity.CpuPercent,
             MemUsedMb: entity.MemUsedMb,
             MemTotalMb: entity.MemTotalMb,
-            Inventory: inventory);
+            Inventory: inventory,
+            DefaultRepoPath: entity.DefaultRepoPath);
     }
 
     public static HostEntity ToEntity(this HostRecord dto)
@@ -123,7 +124,8 @@ public static class EntityMappers
             Status = "unknown",
             InventoryJson = dto.Inventory is not null
                 ? JsonSerializer.Serialize(dto.Inventory, JsonOpts)
-                : null
+                : null,
+            DefaultRepoPath = dto.DefaultRepoPath
         };
     }
 }

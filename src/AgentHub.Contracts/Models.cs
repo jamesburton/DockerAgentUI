@@ -41,6 +41,7 @@ public sealed record StartSessionRequest(
     SessionRequirements Requirements,
     Dictionary<string, string>? Env = null,
     string? WorktreeId = null,
+    string? RepoPath = null,
     string? RequestedSkillProfile = null,
     string? Reason = null,
     string? Prompt = null,
@@ -112,7 +113,8 @@ public sealed record HostRecord(
     double? CpuPercent = null,
     long? MemUsedMb = null,
     long? MemTotalMb = null,
-    HostInventory? Inventory = null);
+    HostInventory? Inventory = null,
+    string? DefaultRepoPath = null);
 
 public sealed record HostInventory(
     List<AgentInfo> Agents,
