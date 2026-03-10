@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Agent & Interactive
-status: completed
-stopped_at: Phase 9 context gathered
-last_updated: "2026-03-10T02:23:29.727Z"
-last_activity: 2026-03-10 -- Completed plan 08-03 web UI steering
+status: in_progress
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-10T09:38:47Z"
+last_activity: 2026-03-10 -- Completed plan 09-01 core worktree engine
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** See what every agent is doing across every machine in real-time, and deploy new agent sessions to any registered host from one place.
-**Current focus:** Phase 8 - Interactive Session Steering
+**Current focus:** Phase 9 - Git Worktree Isolation
 
 ## Current Position
 
-Phase: 8 of 10 (Interactive Session Steering) -- IN PROGRESS
-Plan: 3 of 3 complete
-Status: Phase 08 complete -- all plans finished
-Last activity: 2026-03-10 -- Completed plan 08-03 web UI steering
+Phase: 9 of 10 (Git Worktree Isolation) -- IN PROGRESS
+Plan: 1 of 2 complete
+Status: Plan 09-01 complete -- core worktree engine built
+Last activity: 2026-03-10 -- Completed plan 09-01 core worktree engine
 
-Progress: [██████████] 100%
+Progress: [████████░░] 88%
 
 ## Performance Metrics
 
@@ -48,9 +48,10 @@ Progress: [██████████] 100%
 | Phase 08 P01 | 8min | 2 tasks | 12 files |
 | Phase 08 P02 | 2min | 1 task | 2 files |
 | Phase 08 P03 | 4min | 2 tasks | 6 files |
+| Phase 09 P01 | 8min | 2 tasks | 13 files |
 
 **Recent Trend:**
-- Last 5 plans: 07-03 (3min), 08-01 (8min), 08-02 (2min), 08-03 (4min)
+- Last 5 plans: 08-01 (8min), 08-02 (2min), 08-03 (4min), 09-01 (8min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -77,6 +78,10 @@ Full decision log in PROJECT.md Key Decisions table.
 - 08-02: CancellationToken before isFollowUp in param order for backward compat
 - 08-03: Input bar always visible -- server validates session state, not the UI
 - 08-03: Rapid-fire threshold of 3 commands in 10-second sliding window
+- 09-01: Static utility classes for BranchNameGenerator and DiffStatsParser (pure logic, no DI)
+- 09-01: Shell escaping via single-quote wrapping for SSH commands
+- 09-01: Force-kill keeps worktree by default; only cleans if CleanupPolicy is explicitly "cleanup"
+- 09-01: Generated regex for BranchNameGenerator slug sanitization
 
 ### Pending Todos
 
@@ -90,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:23:29.678Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-git-worktree-isolation/09-CONTEXT.md
+Last session: 2026-03-10T09:38:47Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-git-worktree-isolation/09-01-SUMMARY.md
