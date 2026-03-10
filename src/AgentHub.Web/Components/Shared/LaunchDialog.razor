@@ -98,7 +98,11 @@
     private void OnWorktreeToggled(bool value)
     {
         _useWorktree = value;
-        if (!value)
+        if (value)
+        {
+            _acceptRisk = true; // SSH required for worktree
+        }
+        else
         {
             _keepBranch = false;
             _repoPath = string.Empty;

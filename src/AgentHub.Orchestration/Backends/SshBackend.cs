@@ -56,7 +56,8 @@ public sealed class SshBackend : ISessionBackend
     }
 
     public bool CanHandle(SessionRequirements requirements, NodeCapability node)
-        => requirements.ExecutionMode == ExecutionMode.Ssh
+        => (requirements.ExecutionMode == ExecutionMode.Ssh ||
+            (requirements.ExecutionMode == ExecutionMode.Auto && !string.IsNullOrEmpty(requirements.TargetHostId)))
            && requirements.AcceptRisk
            && string.Equals(node.Backend, Name, StringComparison.OrdinalIgnoreCase)
            && node.AllowRiskyDirectExec;
