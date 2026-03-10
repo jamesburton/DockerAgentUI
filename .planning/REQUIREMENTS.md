@@ -10,7 +10,7 @@ Requirements for milestone v1.1 Multi-Agent & Interactive. Each maps to roadmap 
 ### Interactive Sessions
 
 - [x] **INTER-01**: User can send follow-up instructions to a running agent session mid-task
-- [ ] **INTER-02**: CLI and Blazor UI visually distinguish initial prompt from follow-up steering
+- [x] **INTER-02**: CLI and Blazor UI visually distinguish initial prompt from follow-up steering
 - [x] **INTER-03**: Coordinator receives acknowledgment from host daemon confirming command delivery
 
 ### Host Inventory
@@ -82,7 +82,7 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 | INVT-03 | Phase 7 | Complete |
 | INVT-04 | Phase 7 | Complete |
 | INTER-01 | Phase 8 | Complete |
-| INTER-02 | Phase 8 | Pending |
+| INTER-02 | Phase 8 | Complete |
 | INTER-03 | Phase 8 | Complete |
 | WKTREE-01 | Phase 9 | Pending |
 | WKTREE-02 | Phase 9 | Pending |
