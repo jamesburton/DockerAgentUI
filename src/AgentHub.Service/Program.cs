@@ -120,6 +120,61 @@ app.MapPost("/api/hosts/refresh-inventory", async (
     return Results.Accepted();
 });
 
+// POST /api/hosts - Create a new host
+app.MapPost("/api/hosts", async (
+    CreateHostRequest req,
+    IDbContextFactory<AgentHubDbContext> dbFactory,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.HostId))
+        return Results.BadRequest(new { error = "hostId is required" });
+    if (string.IsNullOrWhiteSpace(req.DisplayName))
+        return Results.BadRequest(new { error = "displayName is required" });
+    if (string.IsNullOrWhiteSpace(req.Backend))
+        return Results.BadRequest(new { error = "backend is required (ssh or nomad)" });
+
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    var existing = await db.Hosts.FindAsync([req.HostId], ct);
+    if (existing is not null)
+        return Results.Conflict(new { error = $"Host '{req.HostId}' already exists" });
+
+    var entity = new HostEntity
+    {
+        HostId = req.HostId.Trim(),
+        DisplayName = req.DisplayName.Trim(),
+        Backend = req.Backend.Trim().ToLowerInvariant(),
+        Os = req.Os?.Trim() ?? "linux",
+        Enabled = true,
+        AllowSsh = req.AllowSsh ?? (req.Backend.Trim().Equals("ssh", StringComparison.OrdinalIgnoreCase)),
+        Address = req.Address?.Trim(),
+        DefaultRepoPath = req.DefaultRepoPath?.Trim(),
+        LastSeenUtc = DateTimeOffset.UtcNow,
+        Status = "unknown"
+    };
+
+    if (req.Labels is { Count: > 0 })
+        entity.LabelsJson = JsonSerializer.Serialize(req.Labels);
+
+    db.Hosts.Add(entity);
+    await db.SaveChangesAsync(ct);
+    return Results.Created($"/api/hosts/{entity.HostId}", entity.ToDto());
+});
+
+// DELETE /api/hosts/{hostId} - Remove a host
+app.MapDelete("/api/hosts/{hostId}", async (
+    string hostId,
+    IDbContextFactory<AgentHubDbContext> dbFactory,
+    CancellationToken ct) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    var host = await db.Hosts.FindAsync([hostId], ct);
+    if (host is null) return Results.NotFound();
+
+    db.Hosts.Remove(host);
+    await db.SaveChangesAsync(ct);
+    return Results.NoContent();
+});
+
 // PATCH /api/hosts/{hostId} - Update host configuration (e.g. default repo path)
 app.MapPatch("/api/hosts/{hostId}", async (
     string hostId,
@@ -398,3 +453,16 @@ public sealed record ApprovalResolveRequest(bool Approved, string? ResolvedBy = 
 /// Request body for host configuration updates (PATCH /api/hosts/{hostId}).
 /// </summary>
 public sealed record HostPatchRequest(string? DefaultRepoPath = null);
+
+/// <summary>
+/// Request body for creating a new host (POST /api/hosts).
+/// </summary>
+public sealed record CreateHostRequest(
+    string HostId,
+    string DisplayName,
+    string Backend,
+    string? Os = null,
+    bool? AllowSsh = null,
+    string? Address = null,
+    string? DefaultRepoPath = null,
+    Dictionary<string, string>? Labels = null);

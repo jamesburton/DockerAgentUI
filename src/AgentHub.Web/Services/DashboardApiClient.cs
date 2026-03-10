@@ -85,6 +85,21 @@ public sealed class DashboardApiClient(HttpClient http)
         response.EnsureSuccessStatusCode();
     }
 
+    // -- Host CRUD --
+
+    public async Task<HostRecord> CreateHostAsync(CreateHostRequest req, CancellationToken ct = default)
+    {
+        var response = await http.PostAsJsonAsync("/api/hosts", req, s_json, ct);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<HostRecord>(s_json, ct))!;
+    }
+
+    public async Task DeleteHostAsync(string hostId, CancellationToken ct = default)
+    {
+        var response = await http.DeleteAsync($"/api/hosts/{Uri.EscapeDataString(hostId)}", ct);
+        response.EnsureSuccessStatusCode();
+    }
+
     // -- Worktree --
 
     public async Task<DiffStats?> GetSessionDiffAsync(string sessionId, CancellationToken ct = default)
@@ -107,4 +122,14 @@ public sealed class DashboardApiClient(HttpClient http)
     internal sealed record SessionListResponse(List<SessionSummary> Items, int TotalCount);
     internal sealed record SessionHistoryResponse(List<SessionEvent> Items, int TotalCount);
     internal sealed record StartSessionResponse(string SessionId);
+
+    public sealed record CreateHostRequest(
+        string HostId,
+        string DisplayName,
+        string Backend,
+        string? Os = null,
+        bool? AllowSsh = null,
+        string? Address = null,
+        string? DefaultRepoPath = null,
+        Dictionary<string, string>? Labels = null);
 }

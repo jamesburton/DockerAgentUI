@@ -14,7 +14,8 @@
         <HostSidebar Hosts="_hosts"
                      Sessions="_sessions"
                      SelectedHostId="_selectedHostId"
-                     SelectedHostIdChanged="OnHostSelected" />
+                     SelectedHostIdChanged="OnHostSelected"
+                     OnHostsChanged="LoadDataAsync" />
     </MudItem>
 
     @* Right column: Toolbar + Session table *@

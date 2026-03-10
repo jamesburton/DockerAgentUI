@@ -1,0 +1,118 @@
+@* Dialog for adding a new SSH host *@
+@inject DashboardApiClient Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Dns" Class="mr-2" />
+            Add Host
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="mt-2" Style="min-width: 400px;">
+            <MudTextField T="string" Label="Host ID" @bind-Value="_hostId"
+                          Variant="Variant.Outlined"
+                          Placeholder="e.g. my-dev-box"
+                          HelperText="Unique identifier (lowercase, no spaces)" />
+
+            <MudTextField T="string" Label="Display Name" @bind-Value="_displayName"
+                          Variant="Variant.Outlined"
+                          Placeholder="e.g. My Dev Box" />
+
+            <MudSelect T="string" Label="Backend" @bind-Value="_backend" Variant="Variant.Outlined">
+                <MudSelectItem T="string" Value="@("ssh")">SSH</MudSelectItem>
+                <MudSelectItem T="string" Value="@("nomad")">Nomad</MudSelectItem>
+            </MudSelect>
+
+            <MudSelect T="string" Label="OS" @bind-Value="_os" Variant="Variant.Outlined">
+                <MudSelectItem T="string" Value="@("linux")">Linux</MudSelectItem>
+                <MudSelectItem T="string" Value="@("windows")">Windows</MudSelectItem>
+                <MudSelectItem T="string" Value="@("macos")">macOS</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField T="string" Label="Address" @bind-Value="_address"
+                          Variant="Variant.Outlined"
+                          Placeholder="@(_backend == "ssh" ? "ssh://hostname-or-ip" : "http://hostname:4646")"
+                          HelperText="@(_backend == "ssh" ? "SSH address (e.g. ssh://192.168.1.10)" : "Nomad API address")" />
+
+            <MudTextField T="string" Label="Default Repo Path" @bind-Value="_defaultRepoPath"
+                          Variant="Variant.Outlined"
+                          Placeholder="e.g. /home/user/myrepo (optional)"
+                          HelperText="Default git repo path for worktree sessions" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Submit" Disabled="_submitting">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Add Host
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _hostId = string.Empty;
+    private string _displayName = string.Empty;
+    private string _backend = "ssh";
+    private string _os = "linux";
+    private string _address = string.Empty;
+    private string _defaultRepoPath = string.Empty;
+    private bool _submitting;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_hostId))
+        {
+            Snackbar.Add("Host ID is required", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_displayName))
+        {
+            Snackbar.Add("Display name is required", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_address))
+        {
+            Snackbar.Add("Address is required", Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            var req = new DashboardApiClient.CreateHostRequest(
+                HostId: _hostId.Trim(),
+                DisplayName: _displayName.Trim(),
+                Backend: _backend,
+                Os: _os,
+                Address: _address.Trim(),
+                DefaultRepoPath: string.IsNullOrWhiteSpace(_defaultRepoPath) ? null : _defaultRepoPath.Trim()
+            );
+
+            var host = await Api.CreateHostAsync(req);
+            Snackbar.Add($"Host '{host.DisplayName}' added", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(host));
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            Snackbar.Add($"Host '{_hostId}' already exists", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add host: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

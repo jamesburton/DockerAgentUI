@@ -1,8 +1,18 @@
 @* Host sidebar with status cards, session counts, CPU/memory bars *@
 @inject DashboardApiClient Api
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <MudPaper Class="pa-2" Style="max-height: calc(100vh - 100px); overflow-y: auto;">
-    <MudText Typo="Typo.subtitle1" Class="mb-2 px-2">Hosts</MudText>
+    <MudStack Row AlignItems="AlignItems.Center" Class="mb-2 px-2">
+        <MudText Typo="Typo.subtitle1">Hosts</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                       Size="Size.Small"
+                       Color="Color.Primary"
+                       OnClick="AddHost"
+                       aria-label="Add Host" />
+    </MudStack>
 
     @* All Hosts card *@
     <MudCard Class="mb-2 cursor-pointer"
@@ -125,11 +135,19 @@
                             </MudText>
                         }
 
-                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                                       Size="Size.Small"
-                                       Disabled="@_refreshing"
-                                       OnClick="() => RefreshInventory(host.HostId)"
-                                       Class="mt-1" />
+                        <MudStack Row AlignItems="AlignItems.Center" Class="mt-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                           Size="Size.Small"
+                                           Disabled="@_refreshing"
+                                           OnClick="() => RefreshInventory(host.HostId)"
+                                           aria-label="Refresh inventory" />
+                            <MudSpacer />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="() => DeleteHost(host.HostId, host.DisplayName)"
+                                           aria-label="Remove host" />
+                        </MudStack>
                     </MudCollapse>
                 </MudCardContent>
             </MudCard>
@@ -142,6 +160,7 @@
     [Parameter] public string? SelectedHostId { get; set; }
     [Parameter] public EventCallback<string?> SelectedHostIdChanged { get; set; }
     [Parameter] public List<SessionSummary>? Sessions { get; set; }
+    [Parameter] public EventCallback OnHostsChanged { get; set; }
 
     private string? ExpandedHostId { get; set; }
     private bool _refreshing;
@@ -168,6 +187,40 @@
     {
         SelectedHostId = hostId;
         await SelectedHostIdChanged.InvokeAsync(hostId);
+    }
+
+    private async Task AddHost()
+    {
+        var dialog = await DialogService.ShowAsync<AddHostDialog>("Add Host",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await OnHostsChanged.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteHost(string hostId, string displayName)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Host",
+            $"Remove host '{displayName}' ({hostId})? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await Api.DeleteHostAsync(hostId);
+                Snackbar.Add($"Host '{displayName}' removed", Severity.Success);
+                await OnHostsChanged.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete host: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
     private static Color GetUtilizationColor(double percent) => percent switch
