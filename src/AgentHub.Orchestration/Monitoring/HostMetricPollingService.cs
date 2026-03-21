@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using AgentHub.Contracts;
 using AgentHub.Orchestration.Backends;
 using AgentHub.Orchestration.Data;
@@ -157,7 +158,13 @@ public sealed class HostMetricPollingService : BackgroundService
     {
         if (os.Contains("windows", StringComparison.OrdinalIgnoreCase))
         {
-            return "powershell -Command \"$cpu=(Get-Counter '\\Processor(_Total)\\% Processor Time').CounterSamples[0].CookedValue; $os=Get-CimInstance Win32_OperatingSystem; \\\"$cpu|$([math]::Round($os.TotalVisibleMemorySize/1024))|$([math]::Round(($os.TotalVisibleMemorySize-$os.FreePhysicalMemory)/1024))\\\"\"";
+            // Use -EncodedCommand to avoid cmd.exe/PowerShell quoting issues over SSH
+            const string script =
+                "$cpu=(Get-Counter '\\Processor(_Total)\\% Processor Time').CounterSamples[0].CookedValue; " +
+                "$os=Get-CimInstance Win32_OperatingSystem; " +
+                "\"$cpu|$([math]::Round($os.TotalVisibleMemorySize/1024))|$([math]::Round(($os.TotalVisibleMemorySize-$os.FreePhysicalMemory)/1024))\"";
+            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+            return $"powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {encoded}";
         }
 
         if (os.Contains("linux", StringComparison.OrdinalIgnoreCase))

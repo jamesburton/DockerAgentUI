@@ -14,8 +14,15 @@ using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure global JSON serialization to handle enums as strings
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 var rootPath = builder.Environment.ContentRootPath;
 var configRoot = Path.GetFullPath(Path.Combine(rootPath, "..", "..", "config"));
@@ -278,6 +285,16 @@ app.MapPost("/api/sessions", async (StartSessionRequest req, IUserContext user, 
         logger.LogError(ex, "SSH error starting session: {Message}", ex.Message);
         return Results.Json(new { error = $"SSH connection failed: {ex.Message}" }, statusCode: 502);
     }
+    catch (TimeoutException ex)
+    {
+        logger.LogError(ex, "Timeout starting session: {Message}", ex.Message);
+        return Results.Json(new { error = $"Connection timed out: {ex.Message}" }, statusCode: 504);
+    }
+    catch (IOException ex)
+    {
+        logger.LogError(ex, "IO error starting session: {Message}", ex.Message);
+        return Results.Json(new { error = $"Connection IO error: {ex.Message}" }, statusCode: 502);
+    }
     catch (Exception ex) when (ex is not OperationCanceledException)
     {
         logger.LogError(ex, "Unexpected error starting session: {Message}", ex.Message);
@@ -362,8 +379,7 @@ app.MapGet("/api/sessions/{sessionId}/diff", async (
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
     var sshUsername = configuration["Ssh:Username"] ?? "agent-user";
 
-    var hostAddress = host.Address.Replace("ssh://", "");
-    await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
+    await using var connection = connectionFactory.Create(host.Address, sshUsername, sshKeyPath);
     await connection.ConnectAsync(ct);
 
     // Use stored repo path, fall back to host default, then git rev-parse
@@ -395,8 +411,7 @@ app.MapPost("/api/hosts/{hostId}/worktree-cleanup", async (
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
     var sshUsername = configuration["Ssh:Username"] ?? "agent-user";
 
-    var hostAddress = host.Address.Replace("ssh://", "");
-    await using var connection = connectionFactory.Create(hostAddress, sshUsername, sshKeyPath);
+    await using var connection = connectionFactory.Create(host.Address, sshUsername, sshKeyPath);
     await connection.ConnectAsync(ct);
 
     // Use host default repo path, fall back to git rev-parse

@@ -1,6 +1,7 @@
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using AgentHub.Contracts;
 
@@ -14,7 +15,10 @@ public sealed class SseStreamReader
     private readonly HttpClient _http;
     private const int MaxRetries = 10;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
-    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public SseStreamReader(HttpClient http)
     {

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "WebSearch",
+      "WebFetch(domain:github.blog)",
+      "WebFetch(domain:addyo.substack.com)"
+    ]
+  }
+}

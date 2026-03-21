@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: awaiting_human_verify
 trigger: "Investigate why starting a session with worktree enabled does nothing - no worktree created, no session details shown, no trigger prompt. Test 3: Web UI launch with worktree toggle, Test 9: CLI session start --worktree --repo-path /path -> 500"
 created: 2026-03-10T00:00:00Z
 updated: 2026-03-10T00:00:00Z
@@ -85,6 +85,25 @@ root_cause: |
   the path -- even if the git command failed. This means a failed worktree creation is silently
   ignored, and the session proceeds with a non-existent worktree path.
 
-fix: (not yet applied)
-verification: (not yet verified)
-files_changed: []
+fix: |
+  Three changes applied:
+
+  1. LaunchDialog.razor: Disabled the AcceptRisk checkbox when worktree is enabled (Disabled="_useWorktree"),
+     added caption explaining why it's required, and added defense-in-depth guard in Launch() to re-enforce
+     AcceptRisk=true when worktree is on (in case state gets out of sync).
+
+  2. Program.cs POST /api/sessions: Added explicit catch blocks for TimeoutException (504) and IOException (502)
+     so SSH connection failures return meaningful HTTP status codes and error messages instead of generic 500.
+
+  3. WorktreeService.CreateWorktreeAsync already had error checking (lines 29-33 check for "fatal:" and "error:"
+     in git output). No change needed -- the original diagnosis was incorrect about this being missing.
+
+verification: |
+  - AgentHub.Orchestration project builds with 0 errors, 0 warnings
+  - AgentHub.Service project compiles with 0 CS/RZ errors (only MSB file-lock warnings from running process)
+  - AgentHub.Web project compiles with 0 CS/RZ errors (only MSB file-lock warnings from running process)
+  - Human verification of UI behavior needed
+
+files_changed:
+  - src/AgentHub.Web/Components/Shared/LaunchDialog.razor
+  - src/AgentHub.Service/Program.cs

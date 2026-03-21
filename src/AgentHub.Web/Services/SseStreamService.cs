@@ -1,5 +1,6 @@
 using System.Net.ServerSentEvents;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using AgentHub.Contracts;
 
@@ -7,7 +8,10 @@ namespace AgentHub.Web.Services;
 
 public sealed class SseStreamService(IHttpClientFactory httpFactory)
 {
-    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public ChannelReader<SessionEvent> SubscribeSession(string sessionId, CancellationToken ct = default)
     {

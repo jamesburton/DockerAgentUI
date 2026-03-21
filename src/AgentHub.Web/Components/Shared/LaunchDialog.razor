@@ -36,7 +36,11 @@
             <MudCheckBox T="bool" @bind-Value="_fireAndForget" Label="Fire and forget"
                          Color="Color.Primary" />
             <MudCheckBox T="bool" @bind-Value="_acceptRisk" Label="Skip permission prompts"
-                         Color="Color.Warning" />
+                         Color="Color.Warning" Disabled="_useWorktree" />
+            @if (_useWorktree)
+            {
+                <MudText Typo="Typo.caption" Class="ml-8 mt-n2 mb-2" Style="color: var(--mud-palette-text-secondary);">Required for worktree sessions (SSH execution)</MudText>
+            }
             <MudCheckBox T="bool" Value="_useWorktree" ValueChanged="OnWorktreeToggled"
                          Label="Git Worktree Isolation"
                          Color="Color.Info" />
@@ -117,13 +121,19 @@
             return;
         }
 
+        // Defense-in-depth: ensure AcceptRisk is set when worktree requires SSH
+        if (_useWorktree && !_acceptRisk)
+        {
+            _acceptRisk = true;
+        }
+
         _launching = true;
         try
         {
             var request = new StartSessionRequest(
                 ImageOrProfile: _agentType,
                 Requirements: new SessionRequirements(
-                    ExecutionMode: ExecutionMode.Ssh,
+                    ExecutionMode: _useWorktree ? ExecutionMode.Ssh : ExecutionMode.Auto,
                     AcceptRisk: _acceptRisk,
                     TargetHostId: string.IsNullOrEmpty(_targetHostId) ? null : _targetHostId
                 ),

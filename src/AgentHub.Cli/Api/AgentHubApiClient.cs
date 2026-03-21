@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgentHub.Contracts;
 
 namespace AgentHub.Cli.Api;
@@ -8,7 +9,10 @@ public sealed class AgentHubApiClient
 {
     private readonly HttpClient _http;
 
-    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public AgentHubApiClient(HttpClient http)
     {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgentHub.Contracts;
@@ -231,7 +232,7 @@ public sealed class HostInventoryPollingService : BackgroundService
 
     private static string BuildWindowsCommand(List<string> agentNames, Dictionary<string, string> versionFlags)
     {
-        // Build agent probe loop entries
+        // Build agent probe loop entries as raw PowerShell (no shell escaping needed with -EncodedCommand)
         var agentProbes = string.Join("; ",
             agentNames.Select(name =>
             {
@@ -239,7 +240,9 @@ public sealed class HostInventoryPollingService : BackgroundService
                 return $"try {{ $p = (where.exe {name} 2>$null | Select-Object -First 1); if ($p) {{ $v = (& $p {flag} 2>$null); $agents += @{{ name='{name}'; version=$v; path=$p }} }} }} catch {{ }}";
             }));
 
-        return $"powershell -Command \"$agents = @(); {agentProbes}; $disk = [math]::Round((Get-PSDrive C).Free / 1GB, 1); $gitVer = $null; try {{ $gitVer = (git --version 2>$null) }} catch {{ }}; @{{ agents=$agents; diskFreeGb=$disk; gitVersion=$gitVer }} | ConvertTo-Json -Compress\"";
+        var script = $"$agents = @(); {agentProbes}; $disk = [math]::Round((Get-PSDrive C).Free / 1GB, 1); $gitVer = $null; try {{ $gitVer = (git --version 2>$null) }} catch {{ }}; @{{ agents=$agents; diskFreeGb=$disk; gitVersion=$gitVer }} | ConvertTo-Json -Compress";
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        return $"powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {encoded}";
     }
 
     private static string BuildLinuxCommand(List<string> agentNames, Dictionary<string, string> versionFlags)

@@ -93,8 +93,7 @@ public sealed class SshBackend : ISessionBackend
             throw new InvalidOperationException($"Host {placement.NodeId} has no SSH address configured.");
 
         // Create SSH connection
-        var hostAddress = host.Address!.Replace("ssh://", "");
-        var connection = _connectionFactory.Create(hostAddress, _sshUsername, _sshKeyPath);
+        var connection = _connectionFactory.Create(host.Address!, _sshUsername, _sshKeyPath);
         try
         {
             await connection.ConnectAsync(ct);
@@ -103,7 +102,7 @@ public sealed class SshBackend : ISessionBackend
         {
             await connection.DisposeAsync();
             throw new InvalidOperationException(
-                $"Cannot connect to host {placement.NodeId} at {hostAddress}: {ex.Message}", ex);
+                $"Cannot connect to host {placement.NodeId} at {host.Address}: {ex.Message}", ex);
         }
 
         var sessionId = $"ssh_{Guid.NewGuid():N}";
@@ -134,33 +133,12 @@ public sealed class SshBackend : ISessionBackend
                 connection, repoRoot, wtPath, worktreeBranch, ct);
         }
 
-        // Build the start-session payload
-        var payload = new StartSessionPayload
-        {
-            AgentType = request.ImageOrProfile,
-            Prompt = request.Prompt ?? request.Reason ?? "",
-            WorkingDirectory = worktreePath ?? $"/sessions/{sessionId}",
-            Permissions = new PermissionPayload
-            {
-                SkipPermissionPrompts = request.Requirements.AcceptRisk
-            }
-        };
+        // Build agent CLI command to execute directly via SSH (not through daemon)
+        var isWindows = host.Os.Contains("windows", StringComparison.OrdinalIgnoreCase);
+        var agentCliCommand = BuildAgentCommand(request, worktreePath, isWindows);
+        _logger.LogInformation("SSH agent command for {SessionId}: {Command}", sessionId, agentCliCommand);
 
-        var startCommand = HostCommandProtocol.CreateStartSession(sessionId, payload);
-        var commandJson = HostCommandProtocol.Serialize(startCommand);
-
-        // Send start command and get response
-        var responseJson = await connection.ExecuteCommandAsync(commandJson, ct);
-        var response = HostCommandProtocol.DeserializeResponse(responseJson);
-
-        if (!response.Success)
-        {
-            await connection.DisposeAsync();
-            throw new InvalidOperationException(
-                $"Failed to start session on {placement.NodeId}: {response.Error}");
-        }
-
-        // Persist session to database
+        // Persist session to database before starting (so SSE subscribers can find it)
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var entity = new SessionEntity
         {
@@ -190,11 +168,8 @@ public sealed class SshBackend : ISessionBackend
         // Emit state changed event
         await emit(new SessionEvent(sessionId, SessionEventKind.StateChanged, DateTimeOffset.UtcNow, "Running"));
 
-        // Start background event reader for fire-and-forget sessions
-        if (request.IsFireAndForget)
-        {
-            _ = Task.Run(async () => await ReadEventsAsync(sessionId, connection, emit, CancellationToken.None), CancellationToken.None);
-        }
+        // Stream agent output in background via PTY-allocated ShellStream for real-time delivery
+        _ = Task.Run(async () => await ReadAgentOutputAsync(sessionId, agentCliCommand, connection, emit), CancellationToken.None);
 
         _logger.LogInformation(
             "Started session {SessionId} on {Host} (fire-and-forget: {IsFireAndForget})",
@@ -324,8 +299,7 @@ public sealed class SshBackend : ISessionBackend
             // Create fresh connection for cleanup
             var host = await _hostRegistry.GetAsync(session.Node!, ct);
             if (host?.Address is null) return;
-            var hostAddress = host.Address.Replace("ssh://", "");
-            connection = _connectionFactory.Create(hostAddress, _sshUsername, _sshKeyPath);
+            connection = _connectionFactory.Create(host.Address, _sshUsername, _sshKeyPath);
             await connection.ConnectAsync(ct);
             needsDispose = true;
         }
@@ -396,66 +370,95 @@ public sealed class SshBackend : ISessionBackend
         }
     }
 
-    private async Task ReadEventsAsync(
+    /// <summary>
+    /// Builds the shell command to invoke the agent CLI directly via SSH.
+    /// Uses cmd.exe syntax for Windows hosts, bash syntax for Linux/macOS.
+    /// </summary>
+    private static string BuildAgentCommand(StartSessionRequest request, string? worktreePath, bool isWindows)
+    {
+        var agentCmd = request.ImageOrProfile switch
+        {
+            "ClaudeCode" or "claude-code" => "claude",
+            "Codex" => "codex",
+            "Aider" => "aider",
+            _ => request.ImageOrProfile.ToLowerInvariant()
+        };
+
+        var args = new List<string>();
+
+        if (agentCmd == "claude")
+        {
+            args.Add("--print");
+            if (request.Requirements.AcceptRisk)
+                args.Add("--dangerously-skip-permissions");
+        }
+
+        var prompt = request.Prompt ?? request.Reason ?? "";
+        if (!string.IsNullOrEmpty(prompt))
+        {
+            if (isWindows)
+            {
+                // cmd.exe: double-quote the prompt, escape inner double quotes
+                var escaped = prompt.Replace("\"", "\\\"");
+                args.Add($"\"{escaped}\"");
+            }
+            else
+            {
+                // bash: single-quote the prompt, escape inner single quotes
+                var escaped = prompt.Replace("'", "'\\''");
+                args.Add($"'{escaped}'");
+            }
+        }
+
+        var fullCommand = $"{agentCmd} {string.Join(' ', args)}";
+
+        // cd to working directory if specified
+        if (!string.IsNullOrEmpty(worktreePath))
+        {
+            if (isWindows)
+                fullCommand = $"cd /d \"{worktreePath}\" && {fullCommand}";
+            else
+                fullCommand = $"cd '{worktreePath}' && {fullCommand}";
+        }
+
+        return fullCommand;
+    }
+
+    /// <summary>
+    /// Streams agent output via PTY-allocated ShellStream for real-time line delivery.
+    /// </summary>
+    private async Task ReadAgentOutputAsync(
         string sessionId,
+        string agentCommand,
         ISshHostConnection connection,
-        Func<SessionEvent, Task> emit,
-        CancellationToken ct)
+        Func<SessionEvent, Task> emit)
     {
         try
         {
-            // For fire-and-forget sessions, start a daemon session to stream events
-            var statusCommand = HostCommandProtocol.Serialize(
-                HostCommandProtocol.CreateReportStatus());
-            var (stdout, _) = await connection.StartDaemonSessionAsync(statusCommand, ct);
-
-            while (!ct.IsCancellationRequested)
+            await connection.StartStreamingCommandAsync(agentCommand, async line =>
             {
-                var line = await stdout.ReadLineAsync(ct);
-                if (line is null) break;
-
-                try
-                {
-                    var response = HostCommandProtocol.DeserializeResponse(line);
-                    var eventKind = MapResponseToEventKind(response);
-                    await emit(new SessionEvent(sessionId, eventKind, DateTimeOffset.UtcNow,
-                        response.Data?.ToString() ?? response.Command));
-                }
-                catch (JsonException)
-                {
-                    // Non-JSON line -- treat as stdout
-                    await emit(new SessionEvent(sessionId, SessionEventKind.StdOut, DateTimeOffset.UtcNow, line));
-                }
-            }
+                await emit(new SessionEvent(sessionId, SessionEventKind.StdOut, DateTimeOffset.UtcNow, line));
+            }, async () =>
+            {
+                await emit(new SessionEvent(sessionId, SessionEventKind.Heartbeat, DateTimeOffset.UtcNow, "waiting"));
+            }, CancellationToken.None);
 
             // Session completed
             await emit(new SessionEvent(sessionId, SessionEventKind.SessionCompleted, DateTimeOffset.UtcNow, "Session completed"));
+            await emit(new SessionEvent(sessionId, SessionEventKind.StateChanged, DateTimeOffset.UtcNow, "Stopped"));
             await UpdateSessionStateAsync(sessionId, SessionState.Stopped, CancellationToken.None);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Error reading events for session {SessionId}", sessionId);
+            _logger.LogError(ex, "Error reading agent output for session {SessionId}", sessionId);
             await emit(new SessionEvent(sessionId, SessionEventKind.StateChanged, DateTimeOffset.UtcNow,
                 $"Failed ({ex.Message})"));
             await UpdateSessionStateAsync(sessionId, SessionState.Failed, CancellationToken.None);
         }
         finally
         {
+            await CleanupWorktreeIfNeeded(sessionId, forceKill: false, CancellationToken.None);
             await CleanupConnection(sessionId);
         }
-    }
-
-    private static SessionEventKind MapResponseToEventKind(HostCommandResponse response)
-    {
-        return response.Command switch
-        {
-            "heartbeat" => SessionEventKind.Heartbeat,
-            "session-completed" => SessionEventKind.SessionCompleted,
-            "cleanup-started" => SessionEventKind.CleanupStarted,
-            "cleanup-completed" => SessionEventKind.CleanupCompleted,
-            "stdout" => SessionEventKind.StdOut,
-            "stderr" => SessionEventKind.StdErr,
-            _ => SessionEventKind.Info
-        };
     }
 }

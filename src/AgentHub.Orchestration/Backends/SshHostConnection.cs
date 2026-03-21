@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using AgentHub.Orchestration.HostDaemon;
 using Microsoft.Extensions.Logging;
 using Renci.SshNet;
@@ -14,6 +15,7 @@ public interface ISshHostConnection : IAsyncDisposable
     Task ConnectAsync(CancellationToken ct);
     Task<string> ExecuteCommandAsync(string commandJson, CancellationToken ct);
     Task<(StreamReader stdout, StreamReader stderr)> StartDaemonSessionAsync(string commandJson, CancellationToken ct);
+    Task StartStreamingCommandAsync(string command, Func<string, Task> onLine, Func<Task>? onHeartbeat, CancellationToken ct);
 }
 
 /// <summary>
@@ -86,6 +88,149 @@ public sealed class SshHostConnection : ISshHostConnection
     }
 
     /// <summary>
+    /// Executes a command via ShellStream (PTY-allocated) for real-time line-by-line output.
+    /// SSH.NET's CreateCommand buffers output until completion; ShellStream provides data immediately.
+    /// </summary>
+    public async Task StartStreamingCommandAsync(string command, Func<string, Task> onLine, Func<Task>? onHeartbeat, CancellationToken ct)
+    {
+        var exitMarker = $"__AGENTHUB_DONE_{Guid.NewGuid():N}__";
+
+        // Use dumb terminal to avoid TUI escape sequences from tools like Claude --print
+        using var shell = _client.CreateShellStream("dumb", 250, 50, 800, 600, 8192);
+
+        // Wait for shell to be ready, drain any banner/MOTD
+        await Task.Delay(2000, ct);
+        var bannerLines = 0;
+        while (shell.DataAvailable)
+        {
+            var bannerLine = shell.ReadLine(TimeSpan.FromMilliseconds(200));
+            bannerLines++;
+            _logger?.LogDebug("ShellStream banner drain [{Count}]: [{Line}]", bannerLines, bannerLine);
+        }
+        _logger?.LogInformation("ShellStream drained {Count} banner lines, sending command: {Command}", bannerLines, command);
+
+        // Send command followed by exit marker so we know when it's done
+        shell.WriteLine(command);
+        shell.WriteLine($"echo {exitMarker}");
+        shell.WriteLine("exit");
+
+        // Track lines seen for command echo detection.
+        // cmd.exe echoes the full prompt+command, e.g. "C:\Users\james>claude --print ..."
+        // We skip lines until we see the first line that is NOT a prompt echo or known control line.
+        var linesRead = 0;
+        var commandEchoesRemaining = 1; // Skip the first non-empty line (the command echo)
+        var noDataCount = 0;
+
+        while (!ct.IsCancellationRequested)
+        {
+            var line = shell.ReadLine(TimeSpan.FromSeconds(5));
+
+            if (line is null)
+            {
+                noDataCount++;
+                _logger?.LogTrace("ShellStream ReadLine returned null (count: {Count})", noDataCount);
+                // 5s * 360 = 30 minute max idle (extended for long-running Claude inference)
+                if (noDataCount > 360)
+                {
+                    _logger?.LogWarning("ShellStream idle timeout after 30 minutes");
+                    break;
+                }
+                // Emit heartbeat every ~30s (6 * 5s) to keep session alive
+                if (onHeartbeat is not null && noDataCount % 6 == 0)
+                    await onHeartbeat();
+                continue;
+            }
+
+            linesRead++;
+            noDataCount = 0;
+
+            // Log raw line BEFORE any processing
+            _logger?.LogDebug("ShellStream raw line [{LineNum}]: [{Line}]", linesRead, line);
+
+            var clean = StripAnsi(line);
+            _logger?.LogDebug("ShellStream clean line [{LineNum}]: [{Clean}]", linesRead, clean);
+
+            // Detect exit marker
+            if (clean.Contains(exitMarker))
+            {
+                _logger?.LogInformation("ShellStream exit marker detected at line {LineNum}", linesRead);
+                break;
+            }
+
+            // Skip empty lines after stripping
+            if (string.IsNullOrWhiteSpace(clean))
+                continue;
+
+            // Skip shell prompt lines: match "X:\path>" or "user@host:path$ " patterns
+            // Use regex to be precise — avoid false positives on content lines ending with >
+            if (IsShellPrompt(clean))
+            {
+                _logger?.LogDebug("ShellStream skipping prompt line [{LineNum}]: [{Clean}]", linesRead, clean);
+                continue;
+            }
+
+            // Skip the command echo (first non-empty, non-prompt line from the shell)
+            if (commandEchoesRemaining > 0)
+            {
+                commandEchoesRemaining--;
+                _logger?.LogDebug("ShellStream skipping command echo [{LineNum}]: [{Clean}]", linesRead, clean);
+                continue;
+            }
+
+            // Skip the echo command itself and exit command
+            if (clean.StartsWith("echo ") || clean.Trim() == "exit")
+            {
+                _logger?.LogDebug("ShellStream skipping control line [{LineNum}]: [{Clean}]", linesRead, clean);
+                continue;
+            }
+
+            _logger?.LogDebug("ShellStream EMITTING line [{LineNum}]: [{Clean}]", linesRead, clean);
+            await onLine(clean);
+        }
+
+        _logger?.LogInformation("ShellStream finished after {LinesRead} lines", linesRead);
+    }
+
+    /// <summary>
+    /// Detects shell prompt lines precisely to avoid false positives.
+    /// Matches Windows cmd prompts (e.g., "C:\Users\james>") and Unix prompts (e.g., "user@host:~$").
+    /// </summary>
+    private static bool IsShellPrompt(string line)
+    {
+        var trimmed = line.TrimEnd();
+        // Windows cmd.exe prompt: drive letter + colon + path + ">"
+        // e.g., "C:\Users\james>" or "D:\Projects\foo>"
+        if (Regex.IsMatch(trimmed, @"^[A-Za-z]:\\[^>]*>$"))
+            return true;
+        // Unix prompt ending with "$ " or "#" (typically user@host patterns)
+        if (Regex.IsMatch(trimmed, @"^[\w.+-]+@[\w.+-]+[:\s].*[\$#]$"))
+            return true;
+        // PowerShell prompt: "PS C:\path>"
+        if (Regex.IsMatch(trimmed, @"^PS [A-Za-z]:\\[^>]*>$"))
+            return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Strips ANSI/VT escape sequences and OSC codes from PTY output.
+    /// </summary>
+    private static string StripAnsi(string input)
+    {
+        // CSI sequences: ESC[ ... final byte
+        // OSC sequences: ESC] ... ST (BEL or ESC\)
+        // Also handle raw BEL-terminated OSC: ]digits;...BEL
+        var result = Regex.Replace(input, @"\x1b\[[0-9;?]*[a-zA-Z]", "");
+        result = Regex.Replace(result, @"\x1b\][^\x07\x1b]*[\x07]", "");
+        result = Regex.Replace(result, @"\x1b\][^\x1b]*\x1b\\", "");
+        result = Regex.Replace(result, @"\][0-9]*;[^\x07]*\x07?", "");
+        result = Regex.Replace(result, @"\x1b[()][0-9A-B]", "");
+        result = Regex.Replace(result, @"\x1b[=>]", "");
+        // Clean any remaining control chars except newline/tab
+        result = Regex.Replace(result, @"[\x00-\x08\x0b\x0c\x0e-\x1f]", "");
+        return result.Trim();
+    }
+
+    /// <summary>
     /// Wraps a JSON protocol command through the daemon script if configured.
     /// Raw shell commands (git, metric collection) are sent directly.
     /// Uses echo piping through stdin to avoid cmd.exe quoting issues on Windows SSH hosts.
@@ -139,7 +284,9 @@ public sealed class SshHostConnectionFactory(ILoggerFactory? loggerFactory = nul
 
     public ISshHostConnection Create(string host, string username, string privateKeyPath)
     {
+        // Strip protocol prefix (ssh://) so SSH.NET gets a plain hostname for DNS resolution
+        var cleanHost = host.Replace("ssh://", "");
         var logger = loggerFactory?.CreateLogger<SshHostConnection>();
-        return new SshHostConnection(host, username, privateKeyPath, DaemonPath, logger);
+        return new SshHostConnection(cleanHost, username, privateKeyPath, DaemonPath, logger);
     }
 }

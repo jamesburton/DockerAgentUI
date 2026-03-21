@@ -1,13 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgentHub.Contracts;
 
 namespace AgentHub.Web.Services;
 
 public sealed class DashboardApiClient(HttpClient http)
 {
-    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public async Task<(List<SessionSummary> Items, int TotalCount)> GetSessionsAsync(
         int? skip = null, int? take = null, string? state = null, CancellationToken ct = default)

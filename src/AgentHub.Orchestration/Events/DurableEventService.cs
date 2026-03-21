@@ -28,16 +28,27 @@ public sealed class DurableEventService
     /// </summary>
     public async Task EmitAsync(SessionEvent ev)
     {
-        // 1. Persist to DB
-        await using var db = await _dbFactory.CreateDbContextAsync();
-        var entity = ev.ToEntity();
-        db.Events.Add(entity);
-        await db.SaveChangesAsync();
+        string eventId;
 
-        // 2. Broadcast to live subscribers with DB-assigned ID
+        if (string.IsNullOrEmpty(ev.SessionId))
+        {
+            // Host-level events (metrics, inventory) have no session — broadcast only, skip DB
+            eventId = Guid.NewGuid().ToString();
+        }
+        else
+        {
+            // Session events: persist to DB
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            var entity = ev.ToEntity();
+            db.Events.Add(entity);
+            await db.SaveChangesAsync();
+            eventId = entity.Id.ToString();
+        }
+
+        // Broadcast to live subscribers
         var sseItem = new SseItem<SessionEvent>(ev, "sessionEvent")
         {
-            EventId = entity.Id.ToString()
+            EventId = eventId
         };
 
         _subs.BroadcastToSession(ev.SessionId, sseItem);
