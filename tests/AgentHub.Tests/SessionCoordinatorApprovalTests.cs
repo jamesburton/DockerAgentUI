@@ -40,7 +40,8 @@ public class SessionCoordinatorApprovalTests
             new ApprovalTestAllowAllPolicy(),
             approvalService,
             dbFactory,
-            Options.Create(new CoordinationOptions()));
+            Options.Create(new CoordinationOptions()),
+            new ActiveSessionTracker());
 
         var sessionId = await coordinator.StartSessionAsync("user-1",
             new StartSessionRequest("test-image", new SessionRequirements(AcceptRisk: acceptRisk)),

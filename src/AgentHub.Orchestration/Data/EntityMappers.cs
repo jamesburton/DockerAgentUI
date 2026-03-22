@@ -27,7 +27,8 @@ public static class EntityMappers
             Requirements: requirements,
             WorktreePath: entity.WorktreePath,
             RiskAcceptedBy: entity.RiskAcceptedBy,
-            WorktreeBranch: entity.WorktreeBranch);
+            WorktreeBranch: entity.WorktreeBranch,
+            ParentSessionId: entity.ParentSessionId);
     }
 
     public static SessionEntity ToEntity(this SessionSummary dto, string? agentType = null)

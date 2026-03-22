@@ -40,7 +40,8 @@ public class SessionCoordinatorTests
             new AllowAllPolicy(),
             new ApprovalService(dbFactory, NullLogger<ApprovalService>.Instance),
             dbFactory,
-            Options.Create(new CoordinationOptions()));
+            Options.Create(new CoordinationOptions()),
+            new ActiveSessionTracker());
     }
 
     // --- StopSessionAsync forceKill routing ---

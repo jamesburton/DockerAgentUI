@@ -161,7 +161,8 @@ public class SteeringPipelineTests
             new SteeringTestAllowAllPolicy(),
             approvalService,
             dbFactory,
-            Options.Create(new CoordinationOptions()));
+            Options.Create(new CoordinationOptions()),
+            new ActiveSessionTracker());
 
         var sessionId = await coordinator.StartSessionAsync("user-1",
             new StartSessionRequest("test-image", new SessionRequirements()),

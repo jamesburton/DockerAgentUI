@@ -214,8 +214,23 @@ app.MapGet("/api/policy", (ISkillPolicyService policy)
 
 // Session listing with pagination and state filtering
 app.MapGet("/api/sessions", async (IUserContext user, ISessionCoordinator coordinator,
-    int? skip, int? take, string? state, CancellationToken ct) =>
+    int? skip, int? take, string? state, string? parentId,
+    IDbContextFactory<AgentHubDbContext> dbFactory, CancellationToken ct) =>
 {
+    if (!string.IsNullOrEmpty(parentId))
+    {
+        // Filter children of a specific parent directly from DB
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var children = await db.Sessions
+            .Where(s => s.OwnerUserId == user.UserId && s.ParentSessionId == parentId)
+            .ToListAsync(ct);
+        var childItems = children
+            .OrderByDescending(s => s.CreatedUtc)
+            .Select(e => e.ToDto())
+            .ToList();
+        return Results.Json(new { items = childItems, totalCount = childItems.Count });
+    }
+
     var (items, totalCount) = await coordinator.GetSessionHistoryAsync(
         user.UserId, skip ?? 0, take ?? 50, state, ct);
     return Results.Json(new { items, totalCount });

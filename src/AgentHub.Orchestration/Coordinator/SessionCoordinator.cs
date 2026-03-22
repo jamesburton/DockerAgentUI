@@ -15,7 +15,8 @@ public sealed class SessionCoordinator(
     ISkillPolicyService policy,
     ApprovalService approval,
     IDbContextFactory<AgentHubDbContext> dbFactory,
-    IOptions<CoordinationOptions> coordinationOptions) : ISessionCoordinator
+    IOptions<CoordinationOptions> coordinationOptions,
+    ActiveSessionTracker sessionTracker) : ISessionCoordinator
 {
     private readonly CoordinationOptions _coordinationOptions = coordinationOptions.Value;
     private readonly IReadOnlyList<ISessionBackend> _backends = backends.ToList();
@@ -42,6 +43,13 @@ public sealed class SessionCoordinator(
 
     public async Task<string> StartSessionAsync(string userId, StartSessionRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
     {
+        // Validate cascade limits if spawning as a child
+        if (!string.IsNullOrEmpty(request.ParentSessionId))
+        {
+            await using var db = await dbFactory.CreateDbContextAsync(ct);
+            await ValidateCascadeLimitsAsync(db, request.ParentSessionId, _coordinationOptions);
+        }
+
         var inventory = new List<NodeCapability>();
         foreach (var backend in _backends)
             inventory.AddRange(await backend.GetInventoryAsync(ct));
@@ -57,7 +65,36 @@ public sealed class SessionCoordinator(
         var resolvedPrompt = request.Prompt ?? request.Reason ?? string.Empty;
         var resolvedRequest = request with { Prompt = resolvedPrompt };
 
-        return await selectedBackend.StartAsync(userId, resolvedRequest, placementDecision, emit, ct);
+        var sessionId = await selectedBackend.StartAsync(userId, resolvedRequest, placementDecision, emit, ct);
+
+        // Track active session count
+        sessionTracker.Increment(placementDecision.NodeId);
+
+        // Set parent-child FK in DB if spawning as a child
+        if (!string.IsNullOrEmpty(request.ParentSessionId))
+        {
+            await using var db = await dbFactory.CreateDbContextAsync(ct);
+            var entity = await db.Sessions.FindAsync(new object[] { sessionId }, ct);
+            if (entity is not null)
+            {
+                entity.ParentSessionId = request.ParentSessionId;
+                await db.SaveChangesAsync(ct);
+            }
+
+            // Emit ChildSpawned event on parent's stream
+            await emit(new SessionEvent(
+                request.ParentSessionId,
+                SessionEventKind.ChildSpawned,
+                DateTimeOffset.UtcNow,
+                $"Child session {sessionId} spawned",
+                new Dictionary<string, string>
+                {
+                    ["childSessionId"] = sessionId,
+                    ["node"] = placementDecision.NodeId
+                }));
+        }
+
+        return sessionId;
     }
 
     public async Task<bool> SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
@@ -163,6 +200,32 @@ public sealed class SessionCoordinator(
         var session = await GetSessionAsync(sessionId, userId, ct) ?? throw new InvalidOperationException("Session not found.");
         var backend = _backends.First(x => string.Equals(x.Name, session.Backend, StringComparison.OrdinalIgnoreCase));
         await backend.StopAsync(sessionId, forceKill, ct);
+
+        // Decrement active session tracker
+        if (session.Node is not null)
+            sessionTracker.Decrement(session.Node);
+
+        // Check for orphaned children
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var activeChildCount = await db.Sessions
+            .CountAsync(s => s.ParentSessionId == sessionId && s.State == SessionState.Running, ct);
+
+        if (activeChildCount > 0)
+        {
+            // Emit via a no-op since we don't have emit callback in stop -- use a direct event approach
+            // We need to store a warning; since we don't have the emit callback here,
+            // we persist the event directly to DB
+            var warningEvent = new SessionEvent(
+                sessionId,
+                SessionEventKind.Info,
+                DateTimeOffset.UtcNow,
+                $"Warning: {activeChildCount} child session(s) still active",
+                new Dictionary<string, string> { ["warning"] = "orphaned-children" });
+
+            var eventEntity = warningEvent.ToEntity();
+            db.Events.Add(eventEntity);
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     public async Task<(IReadOnlyList<SessionSummary> Items, int TotalCount)> GetSessionHistoryAsync(
@@ -200,7 +263,8 @@ public sealed class SessionCoordinator(
             System.Text.Json.JsonSerializer.Deserialize<SessionRequirements>(e.RequirementsJson) ?? new SessionRequirements(),
             e.WorktreePath,
             e.RiskAcceptedBy,
-            e.WorktreeBranch
+            e.WorktreeBranch,
+            e.ParentSessionId
         )).ToList();
 
         return (items, totalCount);
