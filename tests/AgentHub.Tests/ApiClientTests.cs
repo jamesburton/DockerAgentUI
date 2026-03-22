@@ -56,6 +56,24 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task StartSessionAsync_WithSshRequirements_SerializesAcceptRiskAndMode()
+    {
+        var (client, handler) = CreateClient();
+        handler.SetResponse(JsonSerializer.Serialize(new { sessionId = "ssh-456" }, s_json));
+
+        var req = new StartSessionRequest("claude-code",
+            new SessionRequirements(ExecutionMode: ExecutionMode.Ssh, AcceptRisk: true),
+            Prompt: "test ssh");
+        var sessionId = await client.StartSessionAsync(req);
+
+        Assert.Equal("ssh-456", sessionId);
+        var body = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        Assert.Contains("acceptRisk", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("true", body);
+        Assert.Contains("ssh", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task StopSessionAsync_SendsDeleteWithForceFlag()
     {
         var (client, handler) = CreateClient();

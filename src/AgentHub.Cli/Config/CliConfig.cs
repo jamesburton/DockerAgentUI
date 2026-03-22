@@ -4,7 +4,7 @@ namespace AgentHub.Cli.Config;
 
 public sealed class CliConfig
 {
-    public string ServerUrl { get; set; } = "http://localhost:5000";
+    public string ServerUrl { get; set; } = "http://localhost:5131";
     public string? DefaultHost { get; set; }
     public string DefaultAgent { get; set; } = "claude";
     public int WatchRefreshMs { get; set; } = 2000;

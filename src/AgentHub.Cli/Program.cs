@@ -77,7 +77,10 @@ var sessionCommand = new Command("session", "Manage agent sessions");
 
         var req = new StartSessionRequest(
             pr.GetValue(agentArg)!,
-            new SessionRequirements(TargetHostId: pr.GetValue(hostOpt)),
+            new SessionRequirements(
+                TargetHostId: pr.GetValue(hostOpt),
+                ExecutionMode: ExecutionMode.Ssh,
+                AcceptRisk: true),
             WorktreeId: useWorktree ? Guid.NewGuid().ToString("N") : null,
             RepoPath: pr.GetValue(repoPathOpt),
             Prompt: pr.GetValue(promptArg),
@@ -473,7 +476,10 @@ var configCommand = new Command("config", "CLI configuration");
 
         var req = new StartSessionRequest(
             pr.GetValue(agentArg)!,
-            new SessionRequirements(TargetHostId: pr.GetValue(hostOpt)),
+            new SessionRequirements(
+                TargetHostId: pr.GetValue(hostOpt),
+                ExecutionMode: ExecutionMode.Ssh,
+                AcceptRisk: true),
             Prompt: pr.GetValue(promptArg));
 
         var sessionId = await client.StartSessionAsync(req, ct);
