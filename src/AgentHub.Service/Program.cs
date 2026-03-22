@@ -10,6 +10,7 @@ using AgentHub.Orchestration.Placement;
 using AgentHub.Orchestration.Security;
 using AgentHub.Orchestration.Storage;
 using AgentHub.Orchestration.Worktree;
+using Microsoft.Extensions.Options;
 using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,11 @@ builder.Services.AddSingleton<IHostedService>(sp =>
         sp.GetRequiredService<IDbContextFactory<AgentHubDbContext>>(),
         hostsJsonPath,
         sp.GetRequiredService<ILogger<HostSeedingService>>()));
+
+// Phase 10: Placement and coordination configuration
+builder.Services.Configure<PlacementOptions>(builder.Configuration.GetSection("Placement"));
+builder.Services.Configure<CoordinationOptions>(builder.Configuration.GetSection("Coordination"));
+builder.Services.AddSingleton<ActiveSessionTracker>();
 
 builder.Services.AddSingleton<IUserContext, DevUserContext>();
 builder.Services.AddSingleton<IPlacementEngine, SimplePlacementEngine>();

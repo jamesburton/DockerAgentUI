@@ -46,7 +46,8 @@ public sealed record StartSessionRequest(
     string? Reason = null,
     string? Prompt = null,
     bool IsFireAndForget = false,
-    bool KeepBranch = false
+    bool KeepBranch = false,
+    string? ParentSessionId = null
 );
 
 public sealed record SessionSummary(
@@ -59,7 +60,8 @@ public sealed record SessionSummary(
     SessionRequirements Requirements,
     string? WorktreePath = null,
     string? RiskAcceptedBy = null,
-    string? WorktreeBranch = null
+    string? WorktreeBranch = null,
+    string? ParentSessionId = null
 );
 
 public sealed record SendInputRequest(
@@ -90,7 +92,11 @@ public enum SessionEventKind
     CleanupCompleted,
     HostMetrics,
     SteeringInput,
-    SteeringDelivered
+    SteeringDelivered,
+    // Phase 10 additions:
+    ChildSpawned,
+    ChildCompleted,
+    ChildFailed
 }
 
 public sealed record SessionEvent(

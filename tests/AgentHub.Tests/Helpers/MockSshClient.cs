@@ -63,6 +63,12 @@ public sealed class MockSshHostConnection : ISshHostConnection
         }));
     }
 
+    public Task StartStreamingCommandAsync(string command, Func<string, Task> onLine, Func<Task>? onHeartbeat, CancellationToken ct)
+    {
+        _commandsSent.Add(command);
+        return Task.CompletedTask;
+    }
+
     public Task<(StreamReader stdout, StreamReader stderr)> StartDaemonSessionAsync(string commandJson, CancellationToken ct)
     {
         _commandsSent.Add(commandJson);
