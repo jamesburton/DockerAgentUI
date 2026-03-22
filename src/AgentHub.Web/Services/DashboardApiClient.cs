@@ -14,12 +14,13 @@ public sealed class DashboardApiClient(HttpClient http)
     };
 
     public async Task<(List<SessionSummary> Items, int TotalCount)> GetSessionsAsync(
-        int? skip = null, int? take = null, string? state = null, CancellationToken ct = default)
+        int? skip = null, int? take = null, string? state = null, string? parentId = null, CancellationToken ct = default)
     {
         var qs = new List<string>();
         if (skip.HasValue) qs.Add($"skip={skip.Value}");
         if (take.HasValue) qs.Add($"take={take.Value}");
         if (!string.IsNullOrEmpty(state)) qs.Add($"state={Uri.EscapeDataString(state)}");
+        if (!string.IsNullOrEmpty(parentId)) qs.Add($"parentId={Uri.EscapeDataString(parentId)}");
 
         var url = qs.Count > 0 ? $"/api/sessions?{string.Join('&', qs)}" : "/api/sessions";
         var resp = await http.GetFromJsonAsync<SessionListResponse>(url, s_json, ct);

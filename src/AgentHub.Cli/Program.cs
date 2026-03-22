@@ -101,7 +101,7 @@ var sessionCommand = new Command("session", "Manage agent sessions");
     var stateOpt = new Option<string>("--state") { Description = "Filter by session state" };
     var takeOpt = new Option<int>("--take") { Description = "Number of sessions to return", DefaultValueFactory = _ => 20 };
 
-    var cmd = new Command("list", "List sessions");
+    var cmd = new Command("list", "List sessions (tree view when parent-child relationships exist)");
     cmd.Add(stateOpt);
     cmd.Add(takeOpt);
 
@@ -110,28 +110,11 @@ var sessionCommand = new Command("session", "Manage agent sessions");
         var client = ResolveClient(pr);
         var formatter = ResolveFormatter(pr);
         var verbose = pr.GetValue(verboseOption);
+        var isJson = pr.GetValue(jsonOption);
 
-        var (items, _) = await client.GetSessionsAsync(
-            take: pr.GetValue(takeOpt), state: pr.GetValue(stateOpt), ct: ct);
-
-        formatter.WriteTable(items, (table, s) =>
-        {
-            var id = verbose ? s.SessionId : Truncate(s.SessionId, 8);
-            var st = FormatState(s.State);
-            var host = s.Node ?? "(auto)";
-            var created = s.CreatedUtc.ToLocalTime().ToString("HH:mm:ss");
-            var dur = (DateTimeOffset.UtcNow - s.CreatedUtc).ToString(@"hh\:mm\:ss");
-
-            if (verbose)
-                table.AddRow(id, st, s.Backend, host, s.Backend, created, dur);
-            else
-                table.AddRow(id, st, s.Backend, host, created, dur);
-        },
-        verbose
-            ? ["ID", "State", "Agent", "Host", "Backend", "Created", "Duration"]
-            : ["ID", "State", "Agent", "Host", "Created", "Duration"]);
-
-        return 0;
+        return await SessionListCommand.ExecuteAsync(
+            client, formatter, verbose, isJson,
+            pr.GetValue(takeOpt), pr.GetValue(stateOpt), ct);
     });
 
     sessionCommand.Add(cmd);
@@ -518,21 +501,11 @@ var configCommand = new Command("config", "CLI configuration");
     {
         var client = ResolveClient(pr);
         var formatter = ResolveFormatter(pr);
+        var isJson = pr.GetValue(jsonOption);
 
-        var (items, _) = await client.GetSessionsAsync(
-            take: pr.GetValue(takeOpt), state: pr.GetValue(stateOpt), ct: ct);
-
-        formatter.WriteTable(items, (table, s) =>
-        {
-            var id = Truncate(s.SessionId, 8);
-            var host = s.Node ?? "(auto)";
-            var created = s.CreatedUtc.ToLocalTime().ToString("HH:mm:ss");
-            var dur = (DateTimeOffset.UtcNow - s.CreatedUtc).ToString(@"hh\:mm\:ss");
-            table.AddRow(id, s.State.ToString(), s.Backend, host, created, dur);
-        },
-        "ID", "State", "Agent", "Host", "Created", "Duration");
-
-        return 0;
+        return await SessionListCommand.ExecuteAsync(
+            client, formatter, verbose: false, isJson,
+            pr.GetValue(takeOpt), pr.GetValue(stateOpt), ct);
     });
 
     rootCommand.Add(cmd);
@@ -582,17 +555,6 @@ catch (OperationCanceledException)
 // ============================================================
 // Helpers
 // ============================================================
-static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
-
-static string FormatState(SessionState state) => state switch
-{
-    SessionState.Running => "[green]Running[/]",
-    SessionState.Failed => "[red]Failed[/]",
-    SessionState.Stopped => "[grey]Stopped[/]",
-    SessionState.Pending => "[yellow]Pending[/]",
-    _ => state.ToString()
-};
-
 static string FormatCpu(double cpuPercent)
 {
     var v = $"{cpuPercent:F1}%";

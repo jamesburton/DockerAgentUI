@@ -1,82 +1,242 @@
-@* Session data grid with sortable/filterable columns and row actions *@
+@* Session data grid with sortable/filterable columns, row actions, and parent-child hierarchy *@
+@using AgentHub.Contracts
 
-<MudDataGrid T="SessionSummary"
-             Items="@Sessions"
-             Dense="true"
-             Hover="true"
-             Striped="true"
-             RowClick="@OnRowClick"
-             RowStyle="cursor: pointer;"
-             SortMode="SortMode.Single"
-             Filterable="true"
-             FilterMode="DataGridFilterMode.ColumnFilterRow">
-    <Columns>
-        <PropertyColumn Property="x => x.State" Title="Status" Sortable="true" Filterable="true">
-            <CellTemplate>
-                <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.Item.State)">
-                    @context.Item.State
-                </MudChip>
-            </CellTemplate>
-        </PropertyColumn>
+@{
+    var rootSessions = GetRootSessions();
+    var hasHierarchy = Sessions?.Any(s => s.ParentSessionId is not null) == true;
+}
 
-        <PropertyColumn Property="x => x.Backend" Title="Agent Type" Sortable="true" Filterable="true" />
-
-        <TemplateColumn Title="Prompt" Sortable="false" Filterable="false">
-            <CellTemplate>
-                @{
-                    var prompt = GetPromptPreview(context.Item);
+@if (hasHierarchy)
+{
+    @* Hierarchical view: parent rows with expandable children *@
+    <MudTable T="SessionSummary"
+              Items="@rootSessions"
+              Dense="true"
+              Hover="true"
+              Striped="true"
+              OnRowClick="@OnTableRowClick"
+              RowStyle="cursor: pointer;">
+        <HeaderContent>
+            <MudTh></MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Agent Type</MudTh>
+            <MudTh>Host</MudTh>
+            <MudTh>Duration</MudTh>
+            <MudTh>Started</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{
+                var children = GetChildSessions(context.SessionId);
+                var isExpanded = _expandedSessions.Contains(context.SessionId);
+            }
+            <MudTd>
+                @if (children.Count > 0)
+                {
+                    <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                                   Size="Size.Small"
+                                   OnClick="@(() => ToggleExpand(context.SessionId))" />
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-1">
+                        @children.Count child@(children.Count != 1 ? "ren" : "")
+                    </MudChip>
                 }
-                <MudTooltip Text="@prompt" Delay="300">
-                    <MudText Typo="Typo.body2">@Truncate(prompt, 60)</MudText>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.State)">
+                    @context.State
+                </MudChip>
+            </MudTd>
+            <MudTd>@context.Backend</MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@(context.Node ?? "\u2014")</MudText>
+            </MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@GetDuration(context)</MudText>
+            </MudTd>
+            <MudTd>
+                <MudTooltip Text="@context.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss zzz")">
+                    <MudText Typo="Typo.body2">@FormatRelativeTime(context.CreatedUtc)</MudText>
                 </MudTooltip>
-            </CellTemplate>
-        </TemplateColumn>
-
-        <PropertyColumn Property="x => x.Node" Title="Host" Sortable="true" Filterable="true">
-            <CellTemplate>
-                <MudText Typo="Typo.body2">@(context.Item.Node ?? "—")</MudText>
-            </CellTemplate>
-        </PropertyColumn>
-
-        <TemplateColumn Title="Duration" Sortable="false">
-            <CellTemplate>
-                <MudText Typo="Typo.body2">@GetDuration(context.Item)</MudText>
-            </CellTemplate>
-        </TemplateColumn>
-
-        <PropertyColumn Property="x => x.CreatedUtc" Title="Started" Sortable="true">
-            <CellTemplate>
-                <MudTooltip Text="@context.Item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss zzz")">
-                    <MudText Typo="Typo.body2">@FormatRelativeTime(context.Item.CreatedUtc)</MudText>
-                </MudTooltip>
-            </CellTemplate>
-        </PropertyColumn>
-
-        <TemplateColumn Title="Actions" Sortable="false" Filterable="false">
-            <CellTemplate>
-                @if (context.Item.State is SessionState.Running or SessionState.Pending)
+            </MudTd>
+            <MudTd>
+                @if (context.State is SessionState.Running or SessionState.Pending)
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.Stop"
                                    Size="Size.Small"
                                    Color="Color.Error"
                                    title="Stop session"
-                                   OnClick="@(() => StopSession(context.Item.SessionId))" />
+                                   OnClick="@(() => StopSession(context.SessionId))" />
                 }
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
+            </MudTd>
+        </RowTemplate>
+        <ChildRowContent>
+            @{
+                var childSessions = GetChildSessions(context.SessionId);
+                var expanded = _expandedSessions.Contains(context.SessionId);
+            }
+            @if (expanded && childSessions.Count > 0)
+            {
+                <MudTr>
+                    <td colspan="7" style="padding: 0;">
+                        <div style="border-left: 3px solid var(--mud-palette-info); margin-left: 24px; padding-left: 8px; background-color: var(--mud-palette-background-gray);">
+                            <MudTable T="SessionSummary"
+                                      Items="@childSessions"
+                                      Dense="true"
+                                      Hover="true"
+                                      Elevation="0"
+                                      OnRowClick="@OnTableRowClick"
+                                      RowStyle="cursor: pointer;">
+                                <HeaderContent>
+                                    <MudTh>Status</MudTh>
+                                    <MudTh>Agent Type</MudTh>
+                                    <MudTh>Host</MudTh>
+                                    <MudTh>Duration</MudTh>
+                                    <MudTh>Started</MudTh>
+                                    <MudTh>Actions</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="child">
+                                    <MudTd>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetStateColor(child.State)">
+                                            @child.State
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd>@child.Backend</MudTd>
+                                    <MudTd>
+                                        <MudText Typo="Typo.body2">@(child.Node ?? "\u2014")</MudText>
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudText Typo="Typo.body2">@GetDuration(child)</MudText>
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudTooltip Text="@child.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss zzz")">
+                                            <MudText Typo="Typo.body2">@FormatRelativeTime(child.CreatedUtc)</MudText>
+                                        </MudTooltip>
+                                    </MudTd>
+                                    <MudTd>
+                                        @if (child.State is SessionState.Running or SessionState.Pending)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Stop"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           title="Stop session"
+                                                           OnClick="@(() => StopSession(child.SessionId))" />
+                                        }
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
+    </MudTable>
+}
+else
+{
+    @* Flat view: standard MudDataGrid (no parent-child relationships) *@
+    <MudDataGrid T="SessionSummary"
+                 Items="@Sessions"
+                 Dense="true"
+                 Hover="true"
+                 Striped="true"
+                 RowClick="@OnRowClick"
+                 RowStyle="cursor: pointer;"
+                 SortMode="SortMode.Single"
+                 Filterable="true"
+                 FilterMode="DataGridFilterMode.ColumnFilterRow">
+        <Columns>
+            <PropertyColumn Property="x => x.State" Title="Status" Sortable="true" Filterable="true">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.Item.State)">
+                        @context.Item.State
+                    </MudChip>
+                </CellTemplate>
+            </PropertyColumn>
 
-    <NoRecordsContent>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">No sessions found.</MudText>
-    </NoRecordsContent>
-</MudDataGrid>
+            <PropertyColumn Property="x => x.Backend" Title="Agent Type" Sortable="true" Filterable="true" />
+
+            <TemplateColumn Title="Prompt" Sortable="false" Filterable="false">
+                <CellTemplate>
+                    @{
+                        var prompt = GetPromptPreview(context.Item);
+                    }
+                    <MudTooltip Text="@prompt" Delay="300">
+                        <MudText Typo="Typo.body2">@Truncate(prompt, 60)</MudText>
+                    </MudTooltip>
+                </CellTemplate>
+            </TemplateColumn>
+
+            <PropertyColumn Property="x => x.Node" Title="Host" Sortable="true" Filterable="true">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.Node ?? "\u2014")</MudText>
+                </CellTemplate>
+            </PropertyColumn>
+
+            <TemplateColumn Title="Duration" Sortable="false">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@GetDuration(context.Item)</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+
+            <PropertyColumn Property="x => x.CreatedUtc" Title="Started" Sortable="true">
+                <CellTemplate>
+                    <MudTooltip Text="@context.Item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss zzz")">
+                        <MudText Typo="Typo.body2">@FormatRelativeTime(context.Item.CreatedUtc)</MudText>
+                    </MudTooltip>
+                </CellTemplate>
+            </PropertyColumn>
+
+            <TemplateColumn Title="Actions" Sortable="false" Filterable="false">
+                <CellTemplate>
+                    @if (context.Item.State is SessionState.Running or SessionState.Pending)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Stop"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       title="Stop session"
+                                       OnClick="@(() => StopSession(context.Item.SessionId))" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No sessions found.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
 
 @code {
     [Parameter] public List<SessionSummary>? Sessions { get; set; }
     [Parameter] public EventCallback<string> OnSessionSelected { get; set; }
     [Parameter] public EventCallback<string> OnStopSession { get; set; }
 
+    private readonly HashSet<string> _expandedSessions = new();
+
+    private List<SessionSummary> GetRootSessions()
+    {
+        if (Sessions is null) return [];
+        return Sessions.Where(s => s.ParentSessionId is null).ToList();
+    }
+
+    private List<SessionSummary> GetChildSessions(string parentId)
+    {
+        if (Sessions is null) return [];
+        return Sessions.Where(s => s.ParentSessionId == parentId).ToList();
+    }
+
+    private void ToggleExpand(string sessionId)
+    {
+        if (!_expandedSessions.Remove(sessionId))
+            _expandedSessions.Add(sessionId);
+    }
+
     private async Task OnRowClick(DataGridRowClickEventArgs<SessionSummary> args)
+    {
+        await OnSessionSelected.InvokeAsync(args.Item.SessionId);
+    }
+
+    private async Task OnTableRowClick(TableRowClickEventArgs<SessionSummary> args)
     {
         await OnSessionSelected.InvokeAsync(args.Item.SessionId);
     }
@@ -96,8 +256,7 @@
 
     private static string GetPromptPreview(SessionSummary session)
     {
-        // SessionSummary doesn't have Prompt directly; show Requirements info or "-"
-        return session.Requirements.WorktreeId ?? "—";
+        return session.Requirements.WorktreeId ?? "\u2014";
     }
 
     private static string Truncate(string text, int maxLength)
@@ -113,7 +272,7 @@
             var elapsed = DateTimeOffset.UtcNow - session.CreatedUtc;
             return FormatTimeSpan(elapsed);
         }
-        return "—";
+        return "\u2014";
     }
 
     private static string FormatRelativeTime(DateTimeOffset time)
