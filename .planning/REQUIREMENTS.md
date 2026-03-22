@@ -29,9 +29,9 @@ Requirements for milestone v1.1 Multi-Agent & Interactive. Each maps to roadmap 
 
 ### Multi-Agent Coordination
 
-- [ ] **COORD-01**: Running session can spawn child sessions on other hosts via coordinator API
-- [ ] **COORD-02**: Parent-child session relationships are tracked in the database
-- [ ] **COORD-03**: Child session events are visible on the parent's SSE stream
+- [x] **COORD-01**: Running session can spawn child sessions on other hosts via coordinator API
+- [x] **COORD-02**: Parent-child session relationships are tracked in the database
+- [x] **COORD-03**: Child session events are visible on the parent's SSE stream
 - [x] **COORD-04**: Placement engine uses weighted scoring of CPU, memory, and session count
 - [x] **COORD-05**: Sub-agent spawning enforces depth and count limits to prevent cascades
 
@@ -88,9 +88,9 @@ Deferred to v1.2+. Tracked but not in current roadmap.
 | WKTREE-02 | Phase 9 | Complete |
 | WKTREE-03 | Phase 9 | Complete |
 | WKTREE-04 | Phase 9 | Complete |
-| COORD-01 | Phase 10 | Pending |
-| COORD-02 | Phase 10 | Pending |
-| COORD-03 | Phase 10 | Pending |
+| COORD-01 | Phase 10 | Complete |
+| COORD-02 | Phase 10 | Complete |
+| COORD-03 | Phase 10 | Complete |
 | COORD-04 | Phase 10 | Complete |
 | COORD-05 | Phase 10 | Complete |
 
