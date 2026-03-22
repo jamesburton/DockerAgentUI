@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Agent & Interactive
-status: completed
-stopped_at: Phase 10 context gathered
-last_updated: "2026-03-22T10:23:19.384Z"
-last_activity: 2026-03-10 -- Completed plan 09-04 SSE stale state fix and prefix matching
+status: in-progress
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-03-22T10:58:15.000Z"
+last_activity: 2026-03-22 -- Completed plan 10-01 scoring and safety foundation
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 11
+  completed_plans: 11
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** See what every agent is doing across every machine in real-time, and deploy new agent sessions to any registered host from one place.
-**Current focus:** Phase 9 - Git Worktree Isolation
+**Current focus:** Phase 10 - Multi-Agent Coordination
 
 ## Current Position
 
-Phase: 9 of 10 (Git Worktree Isolation) -- Gap closure plans in progress
-Plan: 4 of 4+ complete (gap closure)
-Status: Plan 09-04 complete -- SSE stale state fix and session ID prefix matching
-Last activity: 2026-03-10 -- Completed plan 09-04 SSE stale state fix and prefix matching
+Phase: 10 of 10 (Multi-Agent Coordination)
+Plan: 1 of 1+ complete
+Status: Plan 10-01 complete -- Scoring and safety foundation
+Last activity: 2026-03-22 -- Completed plan 10-01 weighted placement scoring and cascade limits
 
 Progress: [██████████] 100%
 
@@ -52,9 +52,10 @@ Progress: [██████████] 100%
 | Phase 09 P02 | 15min | 3 tasks | 15 files |
 | Phase 09 P03 | 3min | 2 tasks | 5 files |
 | Phase 09 P04 | 5min | 1 task | 2 files |
+| Phase 10 P01 | 6min | 2 tasks | 11 files |
 
 **Recent Trend:**
-- Last 5 plans: 08-03 (4min), 09-01 (8min), 09-02 (15min), 09-03 (3min), 09-04 (5min)
+- Last 5 plans: 09-01 (8min), 09-02 (15min), 09-03 (3min), 09-04 (5min), 10-01 (6min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -92,6 +93,9 @@ Full decision log in PROJECT.md Key Decisions table.
 - 09-03: In-memory DateTimeOffset ordering via ToListAsync + LINQ for SQLite compat
 - 09-03: SshBackend.CanHandle relaxed for Auto mode with explicit TargetHostId
 - 09-04: CancellationToken.None for post-SSE refresh to avoid disposal race
+- 10-01: ScoreNode returns -1 for host exclusion (stale, no metrics, low disk, session cap)
+- 10-01: ValidateCascadeLimitsAsync is static for testability; Plan 02 wires into StartSessionAsync
+- 10-01: Stale metric threshold: >60s excluded, >30s penalized with StaleMetricPenalty multiplier
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T10:23:19.375Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-multi-agent-coordination/10-CONTEXT.md
+Last session: 2026-03-22T10:58:15.000Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: .planning/phases/10-multi-agent-coordination/10-01-SUMMARY.md
