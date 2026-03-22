@@ -1,12 +1,14 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using AgentHub.Contracts;
+using AgentHub.Orchestration.Coordinator;
 using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using AgentHub.Orchestration.HostDaemon;
 using AgentHub.Orchestration.Worktree;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AgentHub.Orchestration.Backends;
@@ -22,6 +24,7 @@ public sealed class SshBackend : ISessionBackend
     private readonly IHostRegistry _hostRegistry;
     private readonly ISshHostConnectionFactory _connectionFactory;
     private readonly WorktreeService _worktreeService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SshBackend> _logger;
     private readonly string _sshKeyPath;
     private readonly string _sshUsername;
@@ -39,6 +42,7 @@ public sealed class SshBackend : ISessionBackend
         IHostRegistry hostRegistry,
         ISshHostConnectionFactory connectionFactory,
         WorktreeService worktreeService,
+        IServiceProvider serviceProvider,
         ILogger<SshBackend> logger,
         IConfiguration configuration)
     {
@@ -46,6 +50,7 @@ public sealed class SshBackend : ISessionBackend
         _hostRegistry = hostRegistry;
         _connectionFactory = connectionFactory;
         _worktreeService = worktreeService;
+        _serviceProvider = serviceProvider;
         _logger = logger;
         _sshKeyPath = configuration["Ssh:PrivateKeyPath"]
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_rsa");
@@ -169,7 +174,7 @@ public sealed class SshBackend : ISessionBackend
         await emit(new SessionEvent(sessionId, SessionEventKind.StateChanged, DateTimeOffset.UtcNow, "Running"));
 
         // Stream agent output in background via PTY-allocated ShellStream for real-time delivery
-        _ = Task.Run(async () => await ReadAgentOutputAsync(sessionId, agentCliCommand, connection, emit), CancellationToken.None);
+        _ = Task.Run(async () => await ReadAgentOutputAsync(sessionId, ownerUserId, agentCliCommand, connection, emit), CancellationToken.None);
 
         _logger.LogInformation(
             "Started session {SessionId} on {Host} (fire-and-forget: {IsFireAndForget})",
@@ -426,9 +431,11 @@ public sealed class SshBackend : ISessionBackend
 
     /// <summary>
     /// Streams agent output via PTY-allocated ShellStream for real-time line delivery.
+    /// Intercepts spawn markers (##AGENTHUB_SPAWN:{...}##) and triggers child session creation.
     /// </summary>
     private async Task ReadAgentOutputAsync(
         string sessionId,
+        string userId,
         string agentCommand,
         ISshHostConnection connection,
         Func<SessionEvent, Task> emit)
@@ -437,6 +444,35 @@ public sealed class SshBackend : ISessionBackend
         {
             await connection.StartStreamingCommandAsync(agentCommand, async line =>
             {
+                // Intercept spawn markers before emitting as StdOut
+                var spawnCmd = SpawnInterceptor.TryParse(line);
+                if (spawnCmd is not null)
+                {
+                    // Fire-and-forget spawn to avoid blocking the PTY reader
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var coordinator = _serviceProvider.GetRequiredService<ISessionCoordinator>();
+                            var spawnRequest = new StartSessionRequest(
+                                ImageOrProfile: spawnCmd.Agent,
+                                Requirements: new SessionRequirements(
+                                    AcceptRisk: spawnCmd.AcceptRisk ?? false,
+                                    TargetHostId: spawnCmd.TargetHostId),
+                                Prompt: spawnCmd.Prompt,
+                                ParentSessionId: sessionId);
+                            await coordinator.StartSessionAsync(userId, spawnRequest, emit, CancellationToken.None);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Spawn intercept failed for session {SessionId}", sessionId);
+                            await emit(new SessionEvent(sessionId, SessionEventKind.Info,
+                                DateTimeOffset.UtcNow, $"Spawn failed: {ex.Message}"));
+                        }
+                    });
+                    return; // Do NOT emit spawn marker as StdOut
+                }
+
                 await emit(new SessionEvent(sessionId, SessionEventKind.StdOut, DateTimeOffset.UtcNow, line));
             }, async () =>
             {

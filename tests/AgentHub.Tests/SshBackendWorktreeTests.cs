@@ -50,6 +50,7 @@ public class SshBackendWorktreeTests
             hostRegistry,
             factory,
             worktreeService,
+            new NullServiceProvider(),
             NullLogger<SshBackend>.Instance,
             CreateConfig());
     }

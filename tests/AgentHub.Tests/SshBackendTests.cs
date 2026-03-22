@@ -53,6 +53,7 @@ public class SshBackendTests
             hostRegistry,
             factory,
             worktreeService,
+            new NullServiceProvider(),
             NullLogger<SshBackend>.Instance,
             CreateConfig());
     }
