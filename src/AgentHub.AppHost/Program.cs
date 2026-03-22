@@ -1,7 +1,6 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var service = builder.AddProject<Projects.AgentHub_Service>("agenthub-service")
-    .WithHttpEndpoint(port: 5131, name: "http");
+var service = builder.AddProject<Projects.AgentHub_Service>("agenthub-service");
 
 builder.AddProject<Projects.AgentHub_Web>("agenthub-web")
     .WithReference(service)
