@@ -11,16 +11,21 @@ namespace AgentHub.Orchestration.Events;
 /// </summary>
 public sealed class SseSubscriptionManager
 {
-    // Per-session subscribers: sessionId -> { connectionId -> ChannelWriter }
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, ChannelWriter<SseItem<SessionEvent>>>> _sessionSubs = new();
+    /// <summary>
+    /// Wraps a channel writer with subscriber options.
+    /// </summary>
+    private sealed record SubscriberInfo(ChannelWriter<SseItem<SessionEvent>> Writer, bool IncludeChildren);
+
+    // Per-session subscribers: sessionId -> { connectionId -> SubscriberInfo }
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, SubscriberInfo>> _sessionSubs = new();
 
     // Fleet-wide subscribers: connectionId -> ChannelWriter
     private readonly ConcurrentDictionary<Guid, ChannelWriter<SseItem<SessionEvent>>> _fleetSubs = new();
 
-    public void AddSessionSubscriber(string sessionId, Guid connectionId, ChannelWriter<SseItem<SessionEvent>> writer)
+    public void AddSessionSubscriber(string sessionId, Guid connectionId, ChannelWriter<SseItem<SessionEvent>> writer, bool includeChildren = false)
     {
-        var subs = _sessionSubs.GetOrAdd(sessionId, _ => new ConcurrentDictionary<Guid, ChannelWriter<SseItem<SessionEvent>>>());
-        subs[connectionId] = writer;
+        var subs = _sessionSubs.GetOrAdd(sessionId, _ => new ConcurrentDictionary<Guid, SubscriberInfo>());
+        subs[connectionId] = new SubscriberInfo(writer, includeChildren);
     }
 
     public void RemoveSessionSubscriber(string sessionId, Guid connectionId)
@@ -51,9 +56,30 @@ public sealed class SseSubscriptionManager
             foreach (var kvp in subs)
             {
                 // If writer is completed/faulted, TryWrite returns false -- clean up
-                if (!kvp.Value.TryWrite(sseItem))
+                if (!kvp.Value.Writer.TryWrite(sseItem))
                 {
                     subs.TryRemove(kvp.Key, out _);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts a forwarded child event to parent session subscribers.
+    /// Lifecycle events are always forwarded; non-lifecycle events only if subscriber opted in.
+    /// </summary>
+    public void BroadcastToParent(string parentSessionId, SseItem<SessionEvent> sseItem, bool isLifecycleEvent)
+    {
+        if (_sessionSubs.TryGetValue(parentSessionId, out var subs))
+        {
+            foreach (var kvp in subs)
+            {
+                if (isLifecycleEvent || kvp.Value.IncludeChildren)
+                {
+                    if (!kvp.Value.Writer.TryWrite(sseItem))
+                    {
+                        subs.TryRemove(kvp.Key, out _);
+                    }
                 }
             }
         }

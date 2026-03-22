@@ -346,6 +346,7 @@ app.MapPost("/api/approvals/{approvalId}/resolve", async (string approvalId, App
 app.MapGet("/api/sessions/{sessionId}/events", async (
     string sessionId,
     [Microsoft.AspNetCore.Mvc.FromHeader(Name = "Last-Event-ID")] string? lastEventId,
+    bool? includeChildren,
     IUserContext user,
     ISessionCoordinator coordinator,
     DurableEventService events,
@@ -354,7 +355,7 @@ app.MapGet("/api/sessions/{sessionId}/events", async (
     var s = await coordinator.GetSessionAsync(sessionId, user.UserId, ct);
     if (s is null) return Results.NotFound();
     return TypedResults.ServerSentEvents(
-        events.SubscribeSession(sessionId, lastEventId, ct),
+        events.SubscribeSession(sessionId, lastEventId, ct, includeChildren ?? false),
         eventType: "sessionEvent");
 });
 
