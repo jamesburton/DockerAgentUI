@@ -6,6 +6,7 @@ using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AgentHub.Tests;
@@ -38,7 +39,8 @@ public class SessionCoordinatorApprovalTests
             new ApprovalTestSkillRegistry(),
             new ApprovalTestAllowAllPolicy(),
             approvalService,
-            dbFactory);
+            dbFactory,
+            Options.Create(new CoordinationOptions()));
 
         var sessionId = await coordinator.StartSessionAsync("user-1",
             new StartSessionRequest("test-image", new SessionRequirements(AcceptRisk: acceptRisk)),

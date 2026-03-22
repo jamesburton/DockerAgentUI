@@ -7,6 +7,7 @@ using AgentHub.Orchestration.Data.Entities;
 using AgentHub.Orchestration.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AgentHub.Tests;
@@ -38,7 +39,8 @@ public class SessionCoordinatorTests
             new EmptySkillRegistry(),
             new AllowAllPolicy(),
             new ApprovalService(dbFactory, NullLogger<ApprovalService>.Instance),
-            dbFactory);
+            dbFactory,
+            Options.Create(new CoordinationOptions()));
     }
 
     // --- StopSessionAsync forceKill routing ---

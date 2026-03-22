@@ -3,6 +3,7 @@ using AgentHub.Orchestration.Data;
 using AgentHub.Orchestration.Data.Entities;
 using AgentHub.Orchestration.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AgentHub.Orchestration.Coordinator;
 
@@ -13,8 +14,10 @@ public sealed class SessionCoordinator(
     ISkillRegistry skills,
     ISkillPolicyService policy,
     ApprovalService approval,
-    IDbContextFactory<AgentHubDbContext> dbFactory) : ISessionCoordinator
+    IDbContextFactory<AgentHubDbContext> dbFactory,
+    IOptions<CoordinationOptions> coordinationOptions) : ISessionCoordinator
 {
+    private readonly CoordinationOptions _coordinationOptions = coordinationOptions.Value;
     private readonly IReadOnlyList<ISessionBackend> _backends = backends.ToList();
 
     public async Task<IReadOnlyList<SessionSummary>> ListSessionsAsync(string userId, CancellationToken ct)
@@ -201,5 +204,45 @@ public sealed class SessionCoordinator(
         )).ToList();
 
         return (items, totalCount);
+    }
+
+    /// <summary>
+    /// Validates that spawning a child from the given parent session does not exceed
+    /// cascade depth or child count limits. Throws InvalidOperationException if limits exceeded.
+    /// Static for testability -- Plan 02 will wire this into StartSessionAsync.
+    /// </summary>
+    public static async Task ValidateCascadeLimitsAsync(AgentHubDbContext db, string parentSessionId, CoordinationOptions options)
+    {
+        // 1. Compute depth by walking ParentSessionId chain
+        var depth = 0;
+        var currentId = parentSessionId;
+        var maxIterations = options.MaxDepth + 1; // safety bound
+
+        for (var i = 0; i < maxIterations && currentId is not null; i++)
+        {
+            var session = await db.Sessions
+                .AsNoTracking()
+                .Where(s => s.SessionId == currentId)
+                .Select(s => new { s.ParentSessionId })
+                .FirstOrDefaultAsync();
+
+            if (session?.ParentSessionId is null)
+                break;
+
+            depth++;
+            currentId = session.ParentSessionId;
+        }
+
+        if (depth >= options.MaxDepth)
+            throw new InvalidOperationException(
+                $"Cascade depth limit exceeded: current depth is {depth}, maximum allowed depth is {options.MaxDepth}.");
+
+        // 2. Count active children of this parent
+        var activeChildCount = await db.Sessions
+            .CountAsync(s => s.ParentSessionId == parentSessionId && s.State == SessionState.Running);
+
+        if (activeChildCount >= options.MaxChildrenPerParent)
+            throw new InvalidOperationException(
+                $"Maximum children per parent exceeded: {activeChildCount} active children, limit is {options.MaxChildrenPerParent}.");
     }
 }
