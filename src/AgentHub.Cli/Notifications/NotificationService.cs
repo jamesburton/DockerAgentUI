@@ -49,12 +49,12 @@ public sealed class NotificationService
         // Ring terminal bell for urgent events
         if (kind is SessionEventKind.ApprovalRequest or SessionEventKind.Threat)
         {
-            Console.Write('\a');
+            TryRingBell();
         }
         else if (kind == SessionEventKind.StateChanged &&
                  summary.Contains("Failed", StringComparison.OrdinalIgnoreCase))
         {
-            Console.Write('\a');
+            TryRingBell();
         }
     }
 
@@ -133,6 +133,16 @@ public sealed class NotificationService
 
         var json = JsonSerializer.Serialize(notifications, s_json);
         File.WriteAllText(_filePath, json);
+    }
+
+    private static void TryRingBell()
+    {
+        try
+        {
+            if (!Console.IsOutputRedirected)
+                Console.Write('\a');
+        }
+        catch (ObjectDisposedException) { }
     }
 
     private void WithFileLock(Action action)

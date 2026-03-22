@@ -168,32 +168,9 @@ else
                 return;
             }
 
-            if (_session.State is SessionState.Running or SessionState.Pending)
+            // Load existing history for all sessions (including stopped ones that may resume)
+            if (_session.State is not (SessionState.Running or SessionState.Pending))
             {
-                var reader = SseStream.SubscribeSession(SessionId, _cts.Token);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await foreach (var evt in reader.ReadAllAsync(_cts.Token))
-                        {
-                            _events.Add(evt);
-                            if (evt.Kind == SessionEventKind.ApprovalRequest)
-                                _pendingApprovals.Add(evt);
-                            if (evt.Kind == SessionEventKind.StateChanged)
-                                _session = await Api.GetSessionAsync(SessionId, _cts.Token);
-                            await InvokeAsync(StateHasChanged);
-                        }
-                        // Stream ended — refresh session state so UI reflects final state
-                        _session = await Api.GetSessionAsync(SessionId, CancellationToken.None);
-                        await InvokeAsync(StateHasChanged);
-                    }
-                    catch (OperationCanceledException) { }
-                }, _cts.Token);
-            }
-            else
-            {
-                // Load history with pagination for completed sessions
                 int page = 1;
                 while (true)
                 {
@@ -204,6 +181,28 @@ else
                     page++;
                 }
             }
+
+            // Always subscribe to SSE — sessions can resume after stopping
+            var reader = SseStream.SubscribeSession(SessionId, _cts.Token);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var evt in reader.ReadAllAsync(_cts.Token))
+                    {
+                        _events.Add(evt);
+                        if (evt.Kind == SessionEventKind.ApprovalRequest)
+                            _pendingApprovals.Add(evt);
+                        if (evt.Kind == SessionEventKind.StateChanged)
+                            _session = await Api.GetSessionAsync(SessionId, _cts.Token);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    // Stream ended — refresh session state so UI reflects final state
+                    _session = await Api.GetSessionAsync(SessionId, CancellationToken.None);
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (OperationCanceledException) { }
+            }, _cts.Token);
         }
         catch (Exception ex)
         {

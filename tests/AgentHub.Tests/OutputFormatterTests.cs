@@ -5,6 +5,7 @@ using Xunit;
 
 namespace AgentHub.Tests;
 
+[Collection("ConsoleOutput")]
 public class OutputFormatterTests
 {
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);

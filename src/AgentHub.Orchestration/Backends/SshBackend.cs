@@ -61,8 +61,7 @@ public sealed class SshBackend : ISessionBackend
     }
 
     public bool CanHandle(SessionRequirements requirements, NodeCapability node)
-        => (requirements.ExecutionMode == ExecutionMode.Ssh ||
-            (requirements.ExecutionMode == ExecutionMode.Auto && !string.IsNullOrEmpty(requirements.TargetHostId)))
+        => (requirements.ExecutionMode == ExecutionMode.Ssh || requirements.ExecutionMode == ExecutionMode.Auto)
            && requirements.AcceptRisk
            && string.Equals(node.Backend, Name, StringComparison.OrdinalIgnoreCase)
            && node.AllowRiskyDirectExec;
@@ -204,6 +203,85 @@ public sealed class SshBackend : ISessionBackend
             _logger.LogWarning(ex, "Failed to deliver input to session {SessionId}", sessionId);
             return false;
         }
+    }
+
+    public async Task<bool> ResumeSessionAsync(string sessionId, string prompt, Func<SessionEvent, Task> emit, CancellationToken ct)
+    {
+        // Look up the session from DB to get host, agent type, and working directory
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var entity = await db.Sessions.FindAsync(new object[] { sessionId }, ct);
+        if (entity is null || entity.State != SessionState.Stopped)
+            return false;
+
+        // Only Claude Code supports --resume
+        var agentCmd = entity.AgentType switch
+        {
+            "ClaudeCode" or "claude-code" => "claude",
+            _ => (string?)null
+        };
+        if (agentCmd is null)
+            return false;
+
+        var host = await _hostRegistry.GetAsync(entity.Node!, ct);
+        if (host is null || string.IsNullOrEmpty(host.Address))
+            return false;
+
+        // Create new SSH connection
+        var connection = _connectionFactory.Create(host.Address!, _sshUsername, _sshKeyPath);
+        try
+        {
+            await connection.ConnectAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await connection.DisposeAsync();
+            _logger.LogError(ex, "Cannot reconnect to host {Host} for session resume {SessionId}", host.Address, sessionId);
+            return false;
+        }
+
+        // Build continue command: claude -p "follow-up prompt" --continue --dangerously-skip-permissions
+        // --continue resumes the most recent conversation in the working directory automatically
+        // -p flag must precede the prompt for non-interactive mode
+        var isWindows = host.Os.Contains("windows", StringComparison.OrdinalIgnoreCase);
+        var args = new List<string> { "-p" };
+
+        var escaped = isWindows
+            ? $"\"{prompt.Replace("\"", "\\\"")}\""
+            : $"'{prompt.Replace("'", "'\\''")}'";
+        args.Add(escaped);
+
+        args.Add("--continue");
+        if (entity.RiskAcceptedBy is not null)
+            args.Add("--dangerously-skip-permissions");
+
+        var fullCommand = $"{agentCmd} {string.Join(' ', args)}";
+
+        // cd to working directory (worktree path or repo root)
+        var workDir = entity.WorktreePath ?? entity.RepoPath;
+        if (!string.IsNullOrEmpty(workDir))
+        {
+            fullCommand = isWindows
+                ? $"cd /d \"{workDir}\" && {fullCommand}"
+                : $"cd '{workDir}' && {fullCommand}";
+        }
+
+        _logger.LogInformation("Resuming session {SessionId} on {Host}: {Command}", sessionId, entity.Node, fullCommand);
+
+        // Update state to Running
+        entity.State = SessionState.Running;
+        await db.SaveChangesAsync(ct);
+
+        // Track new connection
+        _connections[sessionId] = connection;
+
+        await emit(new SessionEvent(sessionId, SessionEventKind.StateChanged, DateTimeOffset.UtcNow, "Running"));
+        await emit(new SessionEvent(sessionId, SessionEventKind.SteeringInput, DateTimeOffset.UtcNow, prompt,
+            new Dictionary<string, string> { ["isFollowUp"] = "true", ["resumed"] = "true" }));
+
+        // Stream output in background
+        _ = Task.Run(async () => await ReadAgentOutputAsync(sessionId, entity.OwnerUserId, fullCommand, connection, emit), CancellationToken.None);
+
+        return true;
     }
 
     public async Task StopAsync(string sessionId, bool forceKill, CancellationToken ct)
@@ -391,12 +469,9 @@ public sealed class SshBackend : ISessionBackend
 
         var args = new List<string>();
 
+        // -p flag must precede the prompt for non-interactive mode
         if (agentCmd == "claude")
-        {
-            args.Add("--print");
-            if (request.Requirements.AcceptRisk)
-                args.Add("--dangerously-skip-permissions");
-        }
+            args.Add("-p");
 
         var prompt = request.Prompt ?? request.Reason ?? "";
         if (!string.IsNullOrEmpty(prompt))
@@ -414,6 +489,10 @@ public sealed class SshBackend : ISessionBackend
                 args.Add($"'{escaped}'");
             }
         }
+
+        // Permission flags after prompt
+        if (agentCmd == "claude" && request.Requirements.AcceptRisk)
+            args.Add("--dangerously-skip-permissions");
 
         var fullCommand = $"{agentCmd} {string.Join(' ', args)}";
 

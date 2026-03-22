@@ -36,6 +36,11 @@ public interface ISessionBackend
     Task<IReadOnlyList<NodeCapability>> GetInventoryAsync(CancellationToken ct);
     Task<string> StartAsync(string ownerUserId, StartSessionRequest request, PlacementDecision placement, Func<SessionEvent, Task> emit, CancellationToken ct);
     Task<bool> SendInputAsync(string sessionId, SendInputRequest request, CancellationToken ct);
+    /// <summary>
+    /// Resumes a stopped session with a follow-up prompt. The agent restarts with conversation context preserved.
+    /// Returns false if the backend does not support resume for this session.
+    /// </summary>
+    Task<bool> ResumeSessionAsync(string sessionId, string prompt, Func<SessionEvent, Task> emit, CancellationToken ct) => Task.FromResult(false);
     Task StopAsync(string sessionId, bool forceKill, CancellationToken ct);
     Task<SessionSummary?> GetAsync(string sessionId, CancellationToken ct);
     Task<IReadOnlyList<SessionSummary>> ListAsync(string ownerUserId, CancellationToken ct);

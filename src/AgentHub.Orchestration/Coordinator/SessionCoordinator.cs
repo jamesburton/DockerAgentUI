@@ -100,6 +100,17 @@ public sealed class SessionCoordinator(
     public async Task<bool> SendInputAsync(string userId, string sessionId, SendInputRequest request, Func<SessionEvent, Task> emit, CancellationToken ct)
     {
         var session = await GetSessionAsync(sessionId, userId, ct) ?? throw new InvalidOperationException("Session not found.");
+
+        // If session is stopped and input is a follow-up, try to resume with --resume
+        if (session.State == SessionState.Stopped && !string.IsNullOrWhiteSpace(request.Input))
+        {
+            var resumeBackend = _backends.First(x => string.Equals(x.Name, session.Backend, StringComparison.OrdinalIgnoreCase));
+            var resumed = await resumeBackend.ResumeSessionAsync(sessionId, request.Input, emit, ct);
+            if (resumed)
+                return true;
+            // If resume not supported, fall through to normal flow (which will likely fail on delivery)
+        }
+
         var skill = string.IsNullOrWhiteSpace(request.SkillId) ? null : skills.TryGet(request.SkillId!);
 
         if (!policy.IsAllowed(request.SkillId, session, request.RequiresElevation))

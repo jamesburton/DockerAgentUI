@@ -6,6 +6,7 @@ using Xunit;
 
 namespace AgentHub.Tests;
 
+[Collection("ConsoleOutput")]
 public class NotificationServiceTests : IDisposable
 {
     private readonly string _tempDir;

@@ -99,12 +99,19 @@ public sealed class SshHostConnection : ISshHostConnection
         using var shell = _client.CreateShellStream("dumb", 250, 50, 800, 600, 8192);
 
         // Wait for shell to be ready, drain any banner/MOTD
+        // DataAvailable checks raw bytes, not complete lines — cap iterations to avoid infinite loop
         await Task.Delay(2000, ct);
         var bannerLines = 0;
-        while (shell.DataAvailable)
+        const int maxBannerDrainAttempts = 50;
+        while (shell.DataAvailable && bannerLines < maxBannerDrainAttempts)
         {
             var bannerLine = shell.ReadLine(TimeSpan.FromMilliseconds(200));
             bannerLines++;
+            if (bannerLine is null)
+            {
+                _logger?.LogDebug("ShellStream banner drain: null line at attempt {Count}, breaking", bannerLines);
+                break; // No complete line available despite DataAvailable — stop draining
+            }
             _logger?.LogDebug("ShellStream banner drain [{Count}]: [{Line}]", bannerLines, bannerLine);
         }
         _logger?.LogInformation("ShellStream drained {Count} banner lines, sending command: {Command}", bannerLines, command);

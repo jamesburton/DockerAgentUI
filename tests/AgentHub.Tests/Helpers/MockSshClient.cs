@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AgentHub.Orchestration.Backends;
 using AgentHub.Orchestration.HostDaemon;
 
@@ -11,13 +12,13 @@ public sealed class MockSshHostConnection : ISshHostConnection
 {
     private bool _connected;
     private readonly Queue<string> _responses = new();
-    private readonly List<string> _commandsSent = new();
+    private readonly ConcurrentQueue<string> _commandsSent = new();
     private bool _simulateConnectionFailure;
 
     public bool IsConnected => _connected && !_simulateConnectionFailure;
 
-    /// <summary>All commands sent to this connection, in order.</summary>
-    public IReadOnlyList<string> CommandsSent => _commandsSent;
+    /// <summary>All commands sent to this connection, in order (thread-safe snapshot).</summary>
+    public IReadOnlyList<string> CommandsSent => _commandsSent.ToList();
 
     /// <summary>Enqueue a canned response for the next ExecuteCommandAsync call.</summary>
     public void EnqueueResponse(string responseJson) => _responses.Enqueue(responseJson);
@@ -50,7 +51,7 @@ public sealed class MockSshHostConnection : ISshHostConnection
 
     public Task<string> ExecuteCommandAsync(string commandJson, CancellationToken ct)
     {
-        _commandsSent.Add(commandJson);
+        _commandsSent.Enqueue(commandJson);
 
         if (_responses.Count > 0)
             return Task.FromResult(_responses.Dequeue());
@@ -65,13 +66,13 @@ public sealed class MockSshHostConnection : ISshHostConnection
 
     public Task StartStreamingCommandAsync(string command, Func<string, Task> onLine, Func<Task>? onHeartbeat, CancellationToken ct)
     {
-        _commandsSent.Add(command);
+        _commandsSent.Enqueue(command);
         return Task.CompletedTask;
     }
 
     public Task<(StreamReader stdout, StreamReader stderr)> StartDaemonSessionAsync(string commandJson, CancellationToken ct)
     {
-        _commandsSent.Add(commandJson);
+        _commandsSent.Enqueue(commandJson);
         // Return empty streams for testing
         var stdoutStream = new MemoryStream();
         var stderrStream = new MemoryStream();

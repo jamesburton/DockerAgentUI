@@ -16,7 +16,7 @@ public class HostInventoryTests
 
         Assert.NotNull(cmd);
         Assert.Contains("powershell", cmd, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ConvertTo-Json", cmd, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("EncodedCommand", cmd, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

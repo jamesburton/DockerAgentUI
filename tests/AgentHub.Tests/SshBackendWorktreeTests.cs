@@ -259,6 +259,11 @@ public class SshBackendWorktreeTests
             e => Task.CompletedTask,
             CancellationToken.None);
 
+        // Let the background reader task complete (reads from empty mock stream)
+        // before setting worktree fields, so its finally-block cleanup check
+        // sees no worktree and exits early.
+        await Task.Delay(200);
+
         // Set worktree fields with auto cleanup policy
         await using (var db = CreateContext(dbName))
         {
@@ -270,14 +275,18 @@ public class SshBackendWorktreeTests
             await db.SaveChangesAsync();
         }
 
+        // Record commands sent before force-kill to exclude background task commands
+        var preForceKillCount = mockConn.CommandsSent.Count;
+
         // Enqueue force-kill response
         mockConn.EnqueueSuccessResponse("force-kill", sessionId);
 
         await backend.StopAsync(sessionId, forceKill: true, CancellationToken.None);
 
         // Force-kill with auto policy should NOT send git cleanup commands
-        Assert.DoesNotContain(mockConn.CommandsSent, c => c.Contains("git stash"));
-        Assert.DoesNotContain(mockConn.CommandsSent, c => c.Contains("git worktree remove"));
+        var forceKillCommands = mockConn.CommandsSent.Skip(preForceKillCount).ToList();
+        Assert.DoesNotContain(forceKillCommands, c => c.Contains("git stash"));
+        Assert.DoesNotContain(forceKillCommands, c => c.Contains("git worktree remove"));
     }
 
     [Fact]
