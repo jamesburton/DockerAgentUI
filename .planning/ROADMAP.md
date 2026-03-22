@@ -96,11 +96,12 @@ Plans:
   3. Events from child sessions appear on the parent session's SSE stream
   4. Placement engine selects hosts using weighted scoring of CPU, memory, and active session count
   5. Sub-agent spawning enforces configurable depth and count limits, rejecting requests that exceed them
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md -- Contracts, placement scoring, cascade limits, active session tracking
+- [ ] 10-02-PLAN.md -- Spawn API, parent-child DB wiring, event forwarding, SSH stdout intercept
+- [ ] 10-03-PLAN.md -- CLI tree view and Web UI hierarchical session display
 
 ## Progress
 
@@ -118,4 +119,4 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 7. Infrastructure & Host Inventory | v1.1 | 3/3 | Complete | 2026-03-10 |
 | 8. Interactive Session Steering | v1.1 | 0/3 | Planning complete | - |
 | 9. Git Worktree Isolation | 4/4 | Complete   | 2026-03-10 | - |
-| 10. Multi-Agent Coordination | v1.1 | 0/0 | Not started | - |
+| 10. Multi-Agent Coordination | v1.1 | 0/3 | Planning complete | - |
